@@ -38,16 +38,21 @@ if (!hasWebGL()) {
 async function start() {
   // Alles, was später geladen wird (Texturen, Modelle), meldet hier seinen Fortschritt.
   const manager = THREE.DefaultLoadingManager;
-  manager.onProgress = (_url, loaded, total) => setProgress(loaded / total);
+  manager.onProgress = (_url, loaded, total) => setProgress(0.2 + 0.6 * (loaded / total));
+  const assetsLoaded = new Promise((resolve) => (manager.onLoad = resolve));
 
   const renderer = new THREE.WebGLRenderer({
     antialias: window.devicePixelRatio < 2,
     powerPreference: 'high-performance',
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.6;
+  // Schärfe: so hoch wie möglich (max. 2), wird automatisch gesenkt, falls es ruckelt
+  const MAX_PIXEL_RATIO = Math.min(window.devicePixelRatio, 2);
+  let pixelRatio = MAX_PIXEL_RATIO;
+  renderer.setPixelRatio(pixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  // „Neutral“ behält die Farben kräftig (ACES hat Haut und Kleidung ausgewaschen)
+  renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.toneMappingExposure = 0.55;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   // Die Szene steht still: Schatten nur einmal berechnen (spart viel Leistung)
@@ -56,10 +61,11 @@ async function start() {
 
   const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1200);
 
-  setProgress(0.3);
+  setProgress(0.1);
   const world = buildWorld(renderer);
   const { scene } = world;
-  setProgress(0.7);
+  await assetsLoaded;
+  setProgress(0.85);
 
   const controls = new WalkControls(camera, renderer.domElement, {
     ground: world.ground,
@@ -78,23 +84,47 @@ async function start() {
   setProgress(1);
 
   // Größe beim Drehen / Ändern des Fensters anpassen
+  const appEl = document.getElementById('app');
   function resize() {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const w = appEl.clientWidth || window.innerWidth;
+    const h = appEl.clientHeight || window.innerHeight;
     camera.aspect = w / h;
     camera.fov = w < h ? 75 : 65; // im Hochformat etwas mehr Übersicht
     camera.updateProjectionMatrix();
-    renderer.setSize(w, h);
+    renderer.setSize(w, h, false); // Anzeigegröße regelt das CSS (100 %)
   }
-  window.addEventListener('resize', resize);
-  window.addEventListener('orientationchange', () => setTimeout(resize, 200));
+  new ResizeObserver(resize).observe(appEl);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 250));
   resize();
 
+  // Bildrate messen und bei Bedarf die Auflösung senken
+  let frames = 0;
+  let acc = 0;
+  let warmup = 1.5;
+  function adaptQuality(dt) {
+    if (warmup > 0) return void (warmup -= dt);
+    frames++;
+    acc += dt;
+    if (acc < 2) return;
+    const fps = frames / acc;
+    frames = 0;
+    acc = 0;
+    if (fps < 42 && pixelRatio > 1) {
+      pixelRatio = Math.max(1, pixelRatio - 0.25);
+      renderer.setPixelRatio(pixelRatio);
+      resize();
+    }
+  }
+
   const clock = new THREE.Clock();
+  let time = 0;
   renderer.setAnimationLoop(() => {
-    const dt = clock.getDelta();
+    const dt = Math.min(clock.getDelta(), 0.1);
+    time += dt;
     controls.update(dt);
+    world.characters.update(time, dt, camera);
     renderer.render(scene, camera);
+    adaptQuality(dt);
   });
 
   // Startknopf mit Anleitung
@@ -106,5 +136,17 @@ async function start() {
   });
 
   // zum Ausprobieren in der Browser-Konsole
-  window.__camp = { scene, camera, controls, renderer };
+  window.__camp = { scene, camera, controls, renderer, world, getPixelRatio: () => pixelRatio };
+  if (import.meta.env.DEV) {
+    // Test-Hilfe: look('percy') stellt die Kamera vor eine Figur
+    window.look = (id, dist = 2, side = 0, pitch = -0.1) => {
+      const r = world.characters.list.find((c) => c.id === id).root;
+      const a = r.rotation.y + side;
+      const x = r.position.x + Math.sin(a) * dist;
+      const z = r.position.z + Math.cos(a) * dist;
+      controls.enabled = true;
+      loadingEl.hidden = true;
+      controls.setView(x, z, Math.atan2(x - r.position.x, z - r.position.z), pitch);
+    };
+  }
 }
