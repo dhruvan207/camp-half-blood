@@ -433,10 +433,10 @@ function poseidonCabin(k, rand) {
   const id = d - 2 * T;
   const openings = {
     front: [{ u0: -0.6, u1: 0.6, y0: 0, y1: 2.1 }],
-    back: [{ u0: -0.45, u1: 0.45, y0: 1.1, y1: 1.75 }],
-    // Fenster über den Betten
-    left: [-3.6, -1.2, 1.2].map((u) => ({ u0: u - 0.4, u1: u + 0.4, y0: 1.15, y1: 1.75 })),
-    right: [3.6, 1.2, -1.2].map((u) => ({ u0: u - 0.4, u1: u + 0.4, y0: 1.15, y1: 1.75 })),
+    back: [],
+    // Im Buch zeigen alle Fenster zum Meer. Die rechte Seite (+x der Hütte) liegt zum Strand hin.
+    left: [],
+    right: [3.6, 1.2, -1.2].map((u) => ({ u0: u - 0.45, u1: u + 0.45, y0: 1.1, y1: 1.8 })),
   };
   const walls = {
     front: { x: 0, z: d / 2 - T / 2, ry: 0, len: w },
@@ -545,7 +545,7 @@ function poseidonCabin(k, rand) {
   }
   });
   // ein paar Muscheln auf den Fensterbänken innen
-  for (let i = 0; i < 6; i++) scallop(k, shellCols[i % 5], (i % 2 ? 1 : -1) * (iw / 2 - 0.05), F + 1.12, -3.6 + Math.floor(i / 2) * 2.4, 0.8, Math.PI / 2);
+  for (let i = 0; i < 3; i++) scallop(k, shellCols[i % 5], iw / 2 - 0.05, F + 1.07, -3.6 + i * 2.4, 0.8, Math.PI / 2);
 
   // Kollisionen (in Hüttenkoordinaten): Wände mit Türöffnung, Betten
   const local = [
