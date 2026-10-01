@@ -145,6 +145,14 @@ function entry(k, o, { bucket = 'wood', color = '#9a7f62', width = 1.8, deck = b
     k.box('wood', '#7a644c', dw / 2 - 0.75, 0.06, 0.06, s * (0.75 + (dw / 2 - 0.75) / 2), f + 0.92, z0 + dd - 0.05);
     for (let t = 0.85; t < dw / 2 - 0.1; t += 0.22) k.box('wood', '#7a644c', 0.035, 0.85, 0.035, s * t, f + 0.45, z0 + dd - 0.05);
   }
+  // Fußmatte und Bank
+  k.box('plain', '#5a4a3a', 0.9, 0.02, 0.55, 0, f + 0.01, z0 + 0.4);
+  if (o.bench !== false) {
+    const bx = -dw / 2 + 0.35;
+    k.box('wood', '#8a6a4a', 0.42, 0.06, 0.95, bx, f + 0.45, z0 + 0.62);
+    k.box('wood', '#8a6a4a', 0.06, 0.45, 0.95, bx - 0.19, f + 0.72, z0 + 0.62);
+    for (const zz of [0.22, 1.02]) k.box('wood', '#6a5040', 0.36, 0.45, 0.06, bx, f + 0.22, z0 + zz);
+  }
   // zwei Holzstufen
   const n = 2;
   for (let i = 0; i < n; i++) {
@@ -169,8 +177,22 @@ function gutters(k, o, eaveY, overhang) {
 // Standard-Holzhütte mit Satteldach
 function shell(k, o) {
   const { w, d, h, floor } = o;
-  // heller Natursteinsockel
-  k.box(o.baseBucket ?? 'stone', o.baseColor ?? '#d6cfc2', w + 0.25, floor, d + 0.25, 0, floor / 2, 0);
+  if (o.piers === false) {
+    // durchgehender Sockel (Steinhütte, Goldhütte)
+    k.box(o.baseBucket ?? 'stone', o.baseColor ?? '#d6cfc2', w + 0.25, floor, d + 0.25, 0, floor / 2, 0);
+  } else {
+    // wie bei echten Camp-Hütten: Hütte steht auf Steinpfeilern, darunter ein dunkler Spalt
+    k.box('plain', '#24211e', w - 0.2, floor, d - 0.2, 0, floor / 2, 0);
+    const nx = Math.max(2, Math.round(w / 1.6));
+    const nz = Math.max(2, Math.round(d / 1.7));
+    for (let i = 0; i <= nx; i++) {
+      for (let j = 0; j <= nz; j++) {
+        if (i !== 0 && i !== nx && j !== 0 && j !== nz) continue;
+        k.box(o.baseBucket ?? 'stone', o.baseColor ?? '#d6cfc2', 0.42, floor, 0.42, -w / 2 + 0.15 + (i * (w - 0.3)) / nx, floor / 2, -d / 2 + 0.15 + (j * (d - 0.3)) / nz);
+      }
+    }
+    k.box('wood', '#6a5644', w + 0.12, 0.14, d + 0.12, 0, floor - 0.07, 0); // Schwelle / Rahmen
+  }
   k.wall(o.wall, o.wallColor, w, h, d, 0, floor + h / 2, 0);
   const trimB = o.trimBucket ?? 'plain';
   const trimC = o.trim ?? TRIM;
@@ -300,12 +322,16 @@ const DEFAULT = { w: 4.8, d: 7.2, h: 3, floor: 0.45, overhang: 0.35 };
 
 const BUILDERS = {
   // Zeus: wie ein weißes Marmor-Bankgebäude mit großen Säulen, polierte Bronzetüren mit Blitzen
-  1(k) {
+  1(k, rand, extras) {
     const o = { w: 7.5, d: 9.5, h: 5.2, nr: 1 };
     const t = temple(k, o);
     // Blitze auf den Bronzetüren (leuchtend)
-    bolt(k, 'glow', '#fff4b0', 0.62, -0.5, t.top + t.dh / 2, t.doorZ + 0.07, 0.2);
-    bolt(k, 'glow', '#fff4b0', 0.62, 0.45, t.top + t.dh / 2, t.doorZ + 0.07, -0.15);
+    // Blitze, die je nach Blickwinkel über die Bronzetüren zucken (wie im Buch: „wie ein Hologramm“)
+    for (const [bx, by, rz, s] of [[-0.55, 0.5, 0.2, 0.62], [0.45, 0.5, -0.15, 0.62], [-0.3, 0.78, -0.4, 0.35], [0.55, 0.25, 0.5, 0.3], [-0.65, 0.22, -0.2, 0.28]]) {
+      bolt(k, 'hologram', '#fff1a8', s, bx, t.top + t.dh * by, t.doorZ + 0.08, rz, 0.01);
+    }
+    for (const sx of [-0.3, 0.3]) k.cyl('bronze', '#e0b25a', 0.05, 0.05, 0.5, sx, t.top + 1.3, t.doorZ + 0.12, 8);
+    extras.push({ type: 'hologram', local: mat4(0, t.top + t.dh / 2, t.doorZ) });
     k.box('bronze', '#8a5c22', 0.04, t.dh, 0.14, 0, t.top + t.dh / 2, t.doorZ + 0.02);
     // Bronzeblitz im Giebel
     bolt(k, 'bronze', '#d9a441', 0.55, 0, t.top + o.h + 1.45, o.d / 2 + 0.22, Math.PI / 2 - 0.2);
@@ -361,7 +387,7 @@ const BUILDERS = {
 
   // Poseidon: niedrig, lang und massiv, rauer grauer Stein mit Muscheln und Korallen
   3(k, rand) {
-    const o = { w: 5.0, d: 10.5, h: 2.6, floor: 0.3, nr: 3, wall: 'coral', wallColor: '#b4bcc0', roof: true, roofH: 0.9, roofBucket: 'coral', roofColor: '#8f989c', gableBucket: 'coral', gableColor: '#b4bcc0', corners: false, overhang: 0.25, roofThick: 0.25, door: { color: '#2f6f6a', bucket: 'wood' }, win: { frame: '#9aa3a6', w: 0.6, h: 0.7 }, stepStyle: { bucket: 'coral', color: '#a3abae' }, fascia: false, gutters: false };
+    const o = { w: 5.0, d: 10.5, h: 2.6, floor: 0.3, nr: 3, wall: 'coral', wallColor: '#b4bcc0', roof: true, roofH: 0.9, roofBucket: 'coral', roofColor: '#8f989c', gableBucket: 'coral', gableColor: '#b4bcc0', corners: false, overhang: 0.25, roofThick: 0.25, door: { color: '#2f6f6a', bucket: 'wood' }, win: { frame: '#9aa3a6', w: 0.6, h: 0.7 }, stepStyle: { bucket: 'coral', color: '#a3abae' }, fascia: false, gutters: false, piers: false };
     shell(k, o);
     // Muscheln in den Wänden
     const shellCols = ['#f3e6da', '#f2c9c0', '#fbf6ee', '#e8d2b0'];
@@ -516,7 +542,7 @@ const BUILDERS = {
 
   // Apollon: aus massivem Gold, das in der Sonne fast blendet
   7(k) {
-    const o = { ...DEFAULT, nr: 7, wall: 'gold', wallColor: '#f0c24a', gableBucket: 'gold', gableColor: '#f3c850', roofBucket: 'gold', roofColor: '#e0a83a', trimBucket: 'gold', trim: '#ffd970', baseBucket: 'gold', baseColor: '#d9a53a', door: { color: '#c9922e', bucket: 'gold', frameBucket: 'gold', frame: '#ffd970' }, win: { frameBucket: 'gold', frame: '#ffd970', glass: '#5a4a2a' }, stepStyle: { bucket: 'gold', color: '#d9a53a' }, gutters: false };
+    const o = { ...DEFAULT, nr: 7, wall: 'gold', wallColor: '#f0c24a', gableBucket: 'gold', gableColor: '#f3c850', roofBucket: 'gold', roofColor: '#e0a83a', trimBucket: 'gold', trim: '#ffd970', baseBucket: 'gold', baseColor: '#d9a53a', door: { color: '#c9922e', bucket: 'gold', frameBucket: 'gold', frame: '#ffd970' }, win: { frameBucket: 'gold', frame: '#ffd970', glass: '#5a4a2a' }, stepStyle: { bucket: 'gold', color: '#d9a53a' }, gutters: false, piers: false };
     shell(k, o);
     // Sonne über der Tür
     const y = o.floor + 3.2;
@@ -625,8 +651,16 @@ const BUILDERS = {
 
   // Hermes: ganz normale alte Sommerlager-Hütte, abgewetzte Schwelle, abblätternde braune Farbe, Äskulapstab über der Tür, völlig überfüllt
   11(k, rand) {
-    const o = { ...DEFAULT, w: 5.4, d: 8, nr: 11, wall: 'worn', wallColor: '#8b6547', gableBucket: 'worn', gableColor: '#7e5b40', roofColor: '#6a625a', trim: '#b8a58a', door: { color: '#6b4a32', bucket: 'worn' }, stepStyle: { bucket: 'wood', color: '#7a6048' }, win: { frame: '#b8a58a', curtains: '#c9b48c', shutters: '#5a4030' }, stovepipe: true };
+    const o = { ...DEFAULT, w: 5.4, d: 8, nr: 11, wall: 'worn', wallColor: '#8b6547', gableBucket: 'worn', gableColor: '#7e5b40', roofColor: '#6a625a', trim: '#b8a58a', door: { color: '#6b4a32', bucket: 'worn' }, stepStyle: { bucket: 'wood', color: '#7a6048' }, win: { frame: '#b8a58a', curtains: '#c9b48c', shutters: '#5a4030' }, stovepipe: true, bench: false };
     shell(k, o);
+    // abblätternde braune Farbe: helle, verwitterte Holzstellen
+    for (let i = 0; i < 46; i++) {
+      const face = ['front', 'left', 'right'][i % 3];
+      const len = face === 'front' ? o.w : o.d;
+      const u = (rand() - 0.5) * (len - 0.5);
+      const y = o.floor + 0.3 + rand() * (o.h - 0.5);
+      onFace(k, o, face, u, y, () => k.box('wood', rand() < 0.5 ? '#a99883' : '#9c8a74', 0.12 + rand() * 0.45, 0.06 + rand() * 0.2, 0.012, 0, 0, 0.005, 0, 0, (rand() - 0.5) * 0.3), 0);
+    }
     // abgewetzte, durchgetretene Schwelle
     k.box('wood', '#9a8568', 1.3, 0.05, 0.3, 0, o.floor + 0.01, o.d / 2 + 0.12);
     // Hermesstab mit zwei Schlangen und Flügeln

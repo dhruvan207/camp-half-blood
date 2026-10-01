@@ -78,7 +78,11 @@ export class WalkControls {
       this.pointer.multi = true;
       return;
     }
-    this.dom.setPointerCapture?.(e.pointerId);
+    try {
+      this.dom.setPointerCapture(e.pointerId);
+    } catch {
+      // nicht schlimm
+    }
     this.pointer = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, multi: false };
   }
 

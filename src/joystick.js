@@ -35,7 +35,11 @@ export class Joystick {
     if (this.pointerId !== null) return;
     e.preventDefault();
     this.pointerId = e.pointerId;
-    this.el.setPointerCapture?.(e.pointerId);
+    try {
+      this.el.setPointerCapture(e.pointerId);
+    } catch {
+      // manche Browser erlauben das nicht immer, der Joystick geht trotzdem
+    }
     this.el.classList.add('active');
     this.onMove(e);
   }

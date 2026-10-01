@@ -51,7 +51,7 @@ function marbleTexture() {
     g.fillStyle = '#f4f1ea';
     g.fillRect(0, 0, w, h);
     for (let i = 0; i < 400; i++) {
-      g.fillStyle = `rgba(${200 + r() * 40},${196 + r() * 40},${190 + r() * 40},0.25)`;
+      g.fillStyle = `rgba(${215 + r() * 30},${212 + r() * 30},${206 + r() * 30},0.1)`;
       g.beginPath();
       g.arc(r() * w, r() * h, 10 + r() * 50, 0, Math.PI * 2);
       g.fill();
@@ -168,12 +168,15 @@ export function materials() {
     marble: std({ map: marble, roughness: 0.35 }),
     splash: std({ map: splash, roughness: 0.7 }),
     grassRoof: std({ map: grass, roughness: 1 }),
-    gold: std({ metalness: 1, roughness: 0.22 }),
+    // Gold glänzt stark und strahlt etwas (Apollon: „so hell, dass man kaum hinschauen kann“)
+    gold: std({ metalness: 1, roughness: 0.14, emissive: new THREE.Color('#7a5200'), emissiveIntensity: 0.4 }),
     bronze: std({ metalness: 0.9, roughness: 0.3 }),
     silver: std({ metalness: 0.95, roughness: 0.18, emissive: new THREE.Color('#a9c4ff'), emissiveIntensity: 0.12 }),
     glass: std({ roughness: 0.08, metalness: 0.4 }),
     fleece: std({ color: '#f2b93a', metalness: 0.7, roughness: 0.4, emissive: new THREE.Color('#8a5200'), emissiveIntensity: 0.55 }),
     glow: new THREE.MeshBasicMaterial({ vertexColors: true }),
+    // Blitze auf Zeus' Bronzetüren: flackern je nach Blickwinkel wie ein Hologramm (wird in world.js bewegt)
+    hologram: new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false }),
     leaf: std({ roughness: 0.9, side: THREE.DoubleSide }),
   };
   return MATS;

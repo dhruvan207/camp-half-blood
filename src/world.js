@@ -8,6 +8,7 @@ import { buildCabins } from './cabins.js';
 import { buildNature } from './nature.js';
 import { buildWater } from './water.js';
 import { Fire, Smoke } from './fire.js';
+import { materials } from './kit.js';
 
 // Sonne: später Nachmittag, tief im Südwesten (über dem Meer)
 const SUN_ELEVATION = 20; // Grad über dem Horizont
@@ -99,12 +100,17 @@ export function buildWorld(renderer) {
     animated.push(fire);
   }
   let boar = null;
+  let holo = null;
   for (const e of cabins.extras) {
     const pos = new THREE.Vector3().setFromMatrixPosition(e.matrix);
     if (e.type === 'smoke') {
       const smoke = new Smoke(pos);
       scene.add(smoke.object);
       animated.push(smoke);
+    } else if (e.type === 'hologram') {
+      // Tür-Mitte und Blickrichtung der Tür merken
+      const normal = new THREE.Vector3(0, 0, 1).transformDirection(e.matrix);
+      holo = { pos, normal, mat: materials().hologram };
     } else if (e.type === 'boar') {
       // Halter mit Ausrichtung der Hütte, darin dreht sich der Kopf
       const holder = new THREE.Group();
@@ -123,6 +129,15 @@ export function buildWorld(renderer) {
     water.update(t);
     for (const a of animated) a.update(t, dt);
     characters.update(t, dt, camera);
+    if (holo) {
+      // Blitze zucken über die Bronzetür, je nachdem, aus welchem Winkel man schaut
+      tmp.copy(camera.position).sub(holo.pos);
+      const dist = tmp.length();
+      const side = Math.atan2(tmp.x * holo.normal.z - tmp.z * holo.normal.x, tmp.x * holo.normal.x + tmp.z * holo.normal.z);
+      const flash = Math.pow(Math.abs(Math.sin(side * 7 + t * 0.6)), 6);
+      const flicker = 0.75 + 0.25 * Math.sin(t * 23) * Math.sin(t * 7.3);
+      holo.mat.opacity = (0.12 + 0.88 * flash) * flicker * (dist < 40 ? 1 : 0.4);
+    }
     if (boar) {
       // die Augen des Wildschweins folgen dir
       const local = boar.parent.worldToLocal(tmp.copy(camera.position));
