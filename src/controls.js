@@ -6,7 +6,7 @@ const MAX_SPEED = 4.5; // Meter pro Sekunde
 const PITCH_MIN = -1.0;
 const PITCH_MAX = 0.6;
 
-// Touch-first Steuerung: Tippen = hinlaufen, Wischen = umschauen.
+// Touch-first Steuerung: Joystick oder Tippen = laufen, Wischen = umschauen.
 // Funktioniert gleich mit der Maus (Klicken / Ziehen). Am Computer zusätzlich WASD/Pfeiltasten.
 export class WalkControls {
   constructor(camera, dom, { ground, obstacles = [], colliders, heightAt }) {
@@ -28,6 +28,8 @@ export class WalkControls {
     this.onArrive = null;
     this.bob = 0;
     this.keys = new Set();
+    this.joystick = null; // wird in main.js gesetzt
+    this.stickVel = new THREE.Vector2();
 
     this.pointer = null; // aktiver Finger / Maus
     this.pointerCount = 0;
@@ -190,6 +192,31 @@ export class WalkControls {
         this.onArrive = null;
         const s = f * MAX_SPEED * dt;
         this.tryMove(-Math.sin(this.yaw) * s, -Math.cos(this.yaw) * s);
+        moving = true;
+      }
+
+      // Joystick: nach vorne/hinten und seitwärts, relativ zur Blickrichtung
+      const j = this.joystick;
+      const fx = -Math.sin(this.yaw);
+      const fz = -Math.cos(this.yaw);
+      const rx = Math.cos(this.yaw);
+      const rz = -Math.sin(this.yaw);
+      let wantX = 0;
+      let wantZ = 0;
+      if (j && j.active) {
+        this.target = null;
+        this.onArrive = null;
+        const fwd = -j.y;
+        const side = j.x;
+        wantX = (fx * fwd + rx * side) * MAX_SPEED;
+        wantZ = (fz * fwd + rz * side) * MAX_SPEED;
+      }
+      // weich beschleunigen und abbremsen
+      const a = Math.min(1, dt * (j && j.active ? 8 : 16)); // beim Loslassen schneller stehen bleiben
+      this.stickVel.x += (wantX - this.stickVel.x) * a;
+      this.stickVel.y += (wantZ - this.stickVel.y) * a;
+      if (this.stickVel.lengthSq() > 0.0004) {
+        if (!this.tryMove(this.stickVel.x * dt, this.stickVel.y * dt)) this.stickVel.set(0, 0);
         moving = true;
       }
     }

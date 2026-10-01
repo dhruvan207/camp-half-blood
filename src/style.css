@@ -118,3 +118,58 @@ body {
 #start-btn:active {
   transform: scale(0.97);
 }
+
+/* Joystick unten links */
+.joystick {
+  position: fixed;
+  left: calc(24px + env(safe-area-inset-left));
+  bottom: calc(28px + env(safe-area-inset-bottom));
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(27, 20, 16, 0.25) 0%, rgba(27, 20, 16, 0.45) 100%);
+  border: 2px solid rgba(255, 248, 234, 0.55);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  z-index: 10;
+  transition: background 0.2s;
+}
+
+.joystick[hidden] {
+  display: none;
+}
+
+.joystick.active {
+  background: radial-gradient(circle, rgba(27, 20, 16, 0.35) 0%, rgba(27, 20, 16, 0.6) 100%);
+}
+
+.joystick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 35% 30%, #fbe3a4, var(--gold) 55%, var(--gold-dark));
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.joystick:not(.active) .joystick-knob {
+  transition: transform 0.15s ease-out;
+}
+
+@media (max-height: 420px) {
+  .joystick {
+    width: 104px;
+    height: 104px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  .joystick-knob {
+    width: 46px;
+    height: 46px;
+  }
+}

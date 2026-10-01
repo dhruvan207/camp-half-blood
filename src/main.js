@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildWorld } from './world.js';
 import { WalkControls } from './controls.js';
+import { Joystick } from './joystick.js';
 import { groundAt, LAYOUT } from './terrain.js';
 
 function hasWebGL() {
@@ -74,6 +75,8 @@ async function start() {
     heightAt: groundAt,
   });
   scene.add(controls.marker);
+  const joystick = new Joystick();
+  controls.joystick = joystick;
   // Start auf dem Half-Blood Hill, Blick hinunter aufs Camp (nach Süden)
   const look = LAYOUT.campfire;
   controls.setView(LAYOUT.start.x, LAYOUT.start.z, Math.atan2(LAYOUT.start.x - look.x, LAYOUT.start.z - look.z), -0.17);
@@ -132,6 +135,7 @@ async function start() {
   document.getElementById('start-area').hidden = false;
   document.getElementById('start-btn').addEventListener('click', () => {
     controls.enabled = true;
+    joystick.show();
     loadingEl.classList.add('fade');
     setTimeout(() => (loadingEl.hidden = true), 700);
   });
