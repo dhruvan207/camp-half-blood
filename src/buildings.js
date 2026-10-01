@@ -22,7 +22,7 @@ function localPlatform(base, lx0, lx1, lz0, lz1, y) {
 // ---------------------------------------------------------------------------
 // Big House: vierstöckiges Farmhaus, himmelblau mit weißen Kanten,
 // umlaufende Veranda, Wetterfahne mit Bronzeadler.
-export const BIG_HOUSE = { w: 12, d: 9, floor: 0.6, storey: 3, porch: 2.8 };
+export const BIG_HOUSE = { w: 12, d: 9, floor: 0.6, storey: 3, porch: 3.4 };
 
 export function bigHouseSpot(lx, lz, yaw = 0) {
   const b = LAYOUT.bigHouse;
@@ -49,10 +49,10 @@ function buildBigHouse(k, colliders) {
   const { w, d, floor, storey, porch } = H;
   const y0 = heightAt(b.x, b.z);
   const wallH = storey * 3;
-  const blue = '#a9dcff';
+  const blue = '#c8ecff';
   k.at(b.x, y0, b.z, b.facing, () => {
-    k.box('stone', '#8a8478', w + 0.3, floor, d + 0.3, 0, floor / 2, 0);
-    k.box('wood', blue, w, wallH, d, 0, floor + wallH / 2, 0);
+    k.box('stone', '#d6cfc3', w + 0.3, floor, d + 0.3, 0, floor / 2, 0);
+    k.wall('wood', blue, w, wallH, d, 0, floor + wallH / 2, 0);
     // weiße Kanten: Ecken und Bänder zwischen den Stockwerken
     for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) k.box('plain', WHITE, 0.22, wallH, 0.22, (x * w) / 2, floor + wallH / 2, (z * d) / 2);
     for (let f = 1; f < storey; f++) k.box('plain', WHITE, w + 0.12, 0.16, d + 0.12, 0, floor + f * 3, 0);
@@ -60,7 +60,12 @@ function buildBigHouse(k, colliders) {
     // Steiles Dach (Dachboden = viertes Stockwerk), First parallel zur Vorderseite
     const rh = 4.4;
     const top = floor + wallH;
-    k.at(0, 0, 0, Math.PI / 2, () => k.gable('roof', '#6c7178', d, w, rh, 0, top, 0, 0.55, 0.2));
+    k.at(0, 0, 0, Math.PI / 2, () => k.gable('roof', '#6c7178', d, w, rh, 0, top, 0, 0.55, 0.2, WHITE));
+    // Regenrinnen und Fallrohre
+    for (const s of [-1, 1]) {
+      k.cyl('metal', '#e9ecef', 0.08, 0.08, w + 1.1, 0, top - 0.12, s * (d / 2 + 0.62), 8, 0, 0, Math.PI / 2);
+      k.cyl('metal', '#e9ecef', 0.05, 0.05, top - 0.1, w / 2 + 0.35, (top - 0.1) / 2, s * (d / 2 + 0.6), 8);
+    }
     for (const s of [-1, 1]) k.gableWall('wood', blue, d, rh, s * (w / 2 - 0.1), top, 0, Math.PI / 2, 0.2);
     // Gauben mit Fenstern im Dachboden
     for (const x of [-3, 3]) {
@@ -97,8 +102,18 @@ function buildBigHouse(k, colliders) {
     const px = -w / 2 - porch / 2;
     k.box('wood', '#b9a98f', w + porch, 0.14, porch, -porch / 2, floor - 0.07, pz);
     k.box('wood', '#b9a98f', porch, 0.14, d, px, floor - 0.07, 0);
-    k.box('plain', '#ddd6c8', w + porch, floor - 0.14, 0.08, -porch / 2, (floor - 0.14) / 2, d / 2 + porch);
-    k.box('plain', '#ddd6c8', 0.08, floor - 0.14, d + porch, -w / 2 - porch, (floor - 0.14) / 2, porch / 2);
+    // Sockel der Veranda mit weißem Gitter (Lattenrost), dahinter dunkel
+    const lattice = (cx, cz, len, ry) =>
+      k.at(cx, 0, cz, ry, () => {
+        const hs = floor - 0.14;
+        k.box('plain', '#2a2622', len, hs, 0.04, 0, hs / 2, -0.04);
+        for (let t = -len / 2 + 0.15; t < len / 2; t += 0.32) {
+          for (const sgn of [-1, 1]) k.box('plain', WHITE, 0.035, hs * 1.38, 0.025, t, hs / 2, 0, 0, 0, sgn * Math.PI / 4);
+        }
+        k.box('plain', WHITE, len, 0.06, 0.05, 0, hs - 0.02, 0.01);
+      });
+    lattice(-porch / 2, d / 2 + porch, w + porch, 0);
+    lattice(-w / 2 - porch, porch / 2, d + porch, Math.PI / 2);
     // Pfosten, Geländer, Vordach
     const postH = 3.1;
     const edgeZ = d / 2 + porch - 0.15;
@@ -130,10 +145,14 @@ function buildBigHouse(k, colliders) {
     // Schaukelstuhl und Hängepflanzen
     k.box('wood', '#6b4a32', 0.6, 0.06, 0.6, -4.5, floor + 0.45, pz);
     k.box('wood', '#6b4a32', 0.6, 0.8, 0.06, -4.5, floor + 0.85, pz - 0.3);
-    for (const x of [-3, 3]) {
+    for (const x of [-3.6]) {
       k.limb('plain', '#3a3a3a', v(x, floor + postH, edgeZ), v(x, floor + postH - 0.5, edgeZ), 0.01, 3);
       k.sphere('leaf', '#4f8f3e', 0.28, x, floor + postH - 0.65, edgeZ, 1, 0.8, 1, 8);
     }
+    // Verandadecke (weiß gestrichen) und Lampe
+    k.box('plain', '#f1eee8', w + porch, 0.04, porch, -porch / 2, floor + postH - 0.02, pz);
+    k.box('plain', '#f1eee8', porch, 0.04, d, px, floor + postH - 0.02, 0);
+    k.cyl('glow', '#ffe2b0', 0.09, 0.07, 0.16, 0, floor + postH - 0.12, d / 2 + 0.8, 10);
 
     // Wetterfahne mit Bronzeadler auf dem First
     const ry = top + rh + 0.1;
@@ -343,21 +362,24 @@ function buildAmphitheater(k, colliders) {
 function buildVolleyball(k, colliders) {
   const p = LAYOUT.volleyball;
   const y0 = heightAt(p.x, p.z);
-  // Linien
-  const line = (w, d, x, z) => k.box('plain', '#ffffff', w, 0.02, d, p.x + x, y0 + 0.01, p.z + z);
-  line(16, 0.06, 0, -4);
-  line(16, 0.06, 0, 4);
-  line(0.06, 8, -8, 0);
-  line(0.06, 8, 8, 0);
-  // Pfosten und Netz
+  const base = { x: p.x, z: p.z, facing: p.along === 'z' ? Math.PI / 2 : 0 };
+  k.at(p.x, y0, p.z, base.facing, () => {
+    // Linien (Feld 16 × 8 m)
+    k.box('plain', '#ffffff', 16, 0.02, 0.06, 0, 0.01, -4);
+    k.box('plain', '#ffffff', 16, 0.02, 0.06, 0, 0.01, 4);
+    k.box('plain', '#ffffff', 0.06, 0.02, 8, -8, 0.01, 0);
+    k.box('plain', '#ffffff', 0.06, 0.02, 8, 8, 0.01, 0);
+    // Pfosten und Netz
+    for (const s of [-1, 1]) k.cyl('metal', '#cfd3d6', 0.06, 0.06, 2.6, 0, 1.3, s * 4.6, 8);
+    k.box('plain', '#f2f2f2', 0.03, 0.07, 9.2, 0, 2.42, 0);
+    for (let i = 0; i < 5; i++) k.box('plain', '#2a2a2a', 0.01, 0.01, 9.2, 0, 1.6 + i * 0.2, 0);
+    for (let z = -4.5; z <= 4.5; z += 0.2) k.box('plain', '#2a2a2a', 0.01, 0.8, 0.01, 0, 2.0, z);
+    k.sphere('glossy', '#f4e9c8', 0.12, 3, 0.12, 1.5, 1, 1, 1, 12);
+  });
   for (const s of [-1, 1]) {
-    k.cyl('metal', '#cfd3d6', 0.06, 0.06, 2.6, p.x, y0 + 1.3, p.z + s * 4.6, 8);
-    colliders.addCircle(p.x, p.z + s * 4.6, 0.15);
+    const w = toWorld(base, 0, s * 4.6);
+    colliders.addCircle(w.x, w.z, 0.15);
   }
-  k.box('plain', '#f2f2f2', 0.03, 0.07, 9.2, p.x, y0 + 2.42, p.z);
-  for (let i = 0; i < 5; i++) k.box('plain', '#2a2a2a', 0.01, 0.01, 9.2, p.x, y0 + 1.6 + i * 0.2, p.z);
-  for (let z = -4.5; z <= 4.5; z += 0.2) k.box('plain', '#2a2a2a', 0.01, 0.8, 0.01, p.x, y0 + 2.0, p.z + z);
-  k.sphere('glossy', '#f4e9c8', 0.12, p.x + 3, y0 + 0.12, p.z + 1.5, 1, 1, 1, 12);
 }
 
 // ---------------------------------------------------------------------------
@@ -553,7 +575,7 @@ function buildCampfire(k, colliders, fires) {
 
 // ---------------------------------------------------------------------------
 export function buildCamp(colliders) {
-  const k = new Kit();
+  const k = new Kit({ ao: heightAt });
   const fires = [];
   buildBigHouse(k, colliders);
   buildPavilion(k, colliders, fires);

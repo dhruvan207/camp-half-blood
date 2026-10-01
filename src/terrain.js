@@ -8,16 +8,21 @@ import { loadTex } from './kit.js';
 // Von dort aus gesehen: ungerade Nummern links (Osten), gerade rechts (Westen).
 // ============================================================================
 
-const ARM_Z = [22, 16.5, 11, 5.5, 0]; // von der Basis des U zur Öffnung
+const ARM_Z = [21.2, 14.9, 8.6, 2.3, -4]; // von der Basis des U zur Öffnung (1,5 m Platz zwischen den Hütten)
+// Tiefe der Hütten (Poseidon ist lang, Hermes etwas größer). Alle Türen stehen in einer Linie,
+// längere Hütten reichen dafür weiter nach hinten.
+const CABIN_DEPTH = { 3: 10.5, 11: 8 };
+const FRONT_LINE = 8.4; // Abstand der Hüttentüren von der Mittellinie
+const armX = (nr, side) => side * (FRONT_LINE + (CABIN_DEPTH[nr] ?? 7.2) / 2);
 export const LAYOUT = {
   hill: { x: 0, z: -34, radius: 17, height: 8 },
   thaliaPine: { x: 1.8, z: -35 },
   start: { x: -2, z: -30.5 },
-  campCenter: { x: 0, z: 12 },
-  campfire: { x: 0, z: 12 },
-  bigHouse: { x: -15, z: -17, facing: Math.PI / 2 }, // Vorderseite mit Veranda zeigt nach Osten
-  volleyball: { x: -12, z: -2 },
-  strawberries: { x: 21, z: -23, w: 18, d: 12 },
+  campCenter: { x: 0, z: 8.6 },
+  campfire: { x: 0, z: 8.6 },
+  bigHouse: { x: -18, z: -18, facing: Math.PI / 2 }, // Vorderseite mit Veranda zeigt nach Osten
+  volleyball: { x: 10, z: -14, along: 'x' },
+  strawberries: { x: 21, z: -26, w: 18, d: 12 },
   archery: { x: 28, z: -6 },
   arena: { x: 26, z: 11, rx: 7.5, rz: 9 },
   pavilion: { x: 24, z: 33, w: 16, d: 11 },
@@ -27,10 +32,10 @@ export const LAYOUT = {
   seaLevel: -0.7,
   bounds: { minX: -44, maxX: 37, minZ: -44, maxZ: 41 },
   cabins: [
-    { nr: 1, god: 'Zeus', x: 5, z: 28.5, facing: Math.PI },
-    { nr: 2, god: 'Hera', x: -5, z: 28.5, facing: Math.PI },
-    ...[3, 5, 7, 9, 11].map((nr, i) => ({ nr, x: 12, z: ARM_Z[i], facing: -Math.PI / 2 })),
-    ...[4, 6, 8, 10, 12].map((nr, i) => ({ nr, x: -12, z: ARM_Z[i], facing: Math.PI / 2 })),
+    { nr: 1, god: 'Zeus', x: 5, z: 30.5, facing: Math.PI },
+    { nr: 2, god: 'Hera', x: -5, z: 30.5, facing: Math.PI },
+    ...[3, 5, 7, 9, 11].map((nr, i) => ({ nr, x: armX(nr, 1), z: ARM_Z[i], facing: -Math.PI / 2 })),
+    ...[4, 6, 8, 10, 12].map((nr, i) => ({ nr, x: armX(nr, -1), z: ARM_Z[i], facing: Math.PI / 2 })),
   ],
   // Bach durch den östlichen Wald (Grenze beim Flaggenspiel)
   creek: [
@@ -53,18 +58,18 @@ export function inFrontOf(c, d) {
 const P = LAYOUT;
 export const PATHS = [
   [[-2, -30.5], [-0.5, -27], [0.5, -22], [0, -12], [0, -2], [0, 3]],
-  [[0.3, -17.5], [-6, -17], [-9.5, -17]],
-  [[0, -8], [8, -12], [14, -18], [20, -22]],
-  [[0, -2], [10, -4], [19, -5], [24, -6]],
-  [[10, -4], [16, 2], [20, 8]],
-  [[0, 3], [-6, 4.5], [-16, 6.5], [-22.5, 7]],
-  [[-19, -17], [-25, -20], [-28, -22]],
+  [[0.3, -17.5], [-9, -18]],
+  [[0.5, -21], [8, -20.8], [14, -20.5]],
+  [[0, -7], [10, -7.8], [19, -7.2], [24, -6]],
+  [[19, -7.2], [19.5, 2], [18.6, 9]],
+  [[0, -7], [-8, -7.7], [-18, -7.7], [-21, -2], [-22.5, 6.5]],
+  [[-24, -19.5], [-27.5, -19.8], [-31, -20.5]],
   // Weg vor den Hütten entlang (ein U)
-  [[8, 0], [8, 24.5], [-8, 24.5], [-8, 0]],
-  [[0, 3], [8, 0]],
-  [[0, 3], [-8, 0]],
-  [[8, 24.5], [14, 28], [19, 31]],
-  [[-8, 24.5], [-12, 25.5], [-17.5, 25.5]],
+  [[6.2, -7], [6.2, 24.4], [-6.2, 24.4], [-6.2, -7]],
+  [[0, 3], [6.2, 0]],
+  [[0, 3], [-6.2, 0]],
+  [[6.2, 24.4], [10.8, 24.3], [15, 27.5], [19, 30.5]],
+  [[-6.2, 24.4], [-10.8, 24.3], [-17.5, 25.5]],
 ];
 
 // --- Hilfsfunktionen ---------------------------------------------------------
@@ -153,7 +158,8 @@ function splatAt(x, z) {
   let sand = 1 - smoothstep((ae - 0.9) / 0.15);
   // Volleyballfeld
   const vb = P.volleyball;
-  if (Math.abs(x - vb.x) < 9 && Math.abs(z - vb.z) < 5) sand = Math.max(sand, 1 - smoothstep((Math.max(Math.abs(x - vb.x) - 8, Math.abs(z - vb.z) - 4.5) + 0.5) / 0.6));
+  const [vbx, vbz] = vb.along === 'z' ? [Math.abs(z - vb.z), Math.abs(x - vb.x)] : [Math.abs(x - vb.x), Math.abs(z - vb.z)];
+  if (vbx < 9 && vbz < 5) sand = Math.max(sand, 1 - smoothstep((Math.max(vbx - 8, vbz - 4.5) + 0.5) / 0.6));
   // Strand
   sand = Math.max(sand, smoothstep((z - 34.5) / 2.5));
   // Seeufer

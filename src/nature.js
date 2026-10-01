@@ -100,10 +100,12 @@ function keepClear(x, z, colliders, r = 1.2) {
   if (distToPolyline(x, z, L.creek) < r + 2.2) return true;
   const e = ((x - L.lake.x) / (L.lake.rx + 2)) ** 2 + ((z - L.lake.z) / (L.lake.rz + 2)) ** 2;
   if (e < 1) return true;
-  if (inRect(x, z, -17, 17, -4, 34)) return true; // Hütten und Wiese
+  if (inRect(x, z, -20, 20, -6, 36)) return true; // Hütten und Wiese
   if (Math.hypot(x - L.hill.x, z - L.hill.z) < 11) return true; // freier Blick vom Hügel
-  if (inRect(x, z, -24, -2, -26, 3)) return true; // Big House, Volleyball
-  if (inRect(x, z, 10, 33, -31, -15)) return true; // Erdbeerfelder
+  if (inRect(x, z, -10, 10, -34, -5)) return true; // Weg vom Hügel ins Camp, Blick frei halten
+  if (inRect(x, z, -27, -6, -28, -6)) return true; // Big House
+  if (inRect(x, z, 0, 20, -20, -8)) return true; // Volleyball
+  if (inRect(x, z, 10, 33, -34, -17)) return true; // Erdbeerfelder
   if (inRect(x, z, 19, 37, -14, 1)) return true; // Bogenschießen
   if (((x - L.arena.x) / (L.arena.rx + 5)) ** 2 + ((z - L.arena.z) / (L.arena.rz + 5)) ** 2 < 1) return true;
   if (inRect(x, z, 13, 35, 24, 42)) return true; // Pavillon
@@ -283,9 +285,11 @@ function buildStrawberries() {
       const s = 0.8 + r() * 0.4;
       mats.push(mat4(x, heightAt(x, z), z, 0, r() * 6, 0, s, s, s));
     }
-    // Erdwall der Reihe
-    const y = heightAt(sf.x, z);
-    k.box('plain', '#6a4a30', sf.w, 0.12, 0.5, sf.x, y + 0.02, z);
+    // Erdwall der Reihe, in Stücken, damit er dem Hang folgt
+    for (let sgm = 0; sgm < 9; sgm++) {
+      const x = sf.x - sf.w / 2 + (sgm + 0.5) * (sf.w / 9);
+      k.box('plain', '#6a4a30', sf.w / 9 + 0.05, 0.14, 0.5, x, heightAt(x, z) + 0.02, z);
+    }
   }
   const g = new THREE.Group();
   g.add(k.build(), instance(bushGroup, mats));
@@ -392,7 +396,8 @@ function keepGrassClear(x, z, colliders) {
   if (e < 1) return true;
   if (distToPolyline(x, z, L.creek) < 2.8) return true;
   if (((x - L.arena.x) / L.arena.rx) ** 2 + ((z - L.arena.z) / L.arena.rz) ** 2 < 1.1) return true;
-  if (Math.abs(x - L.volleyball.x) < 9 && Math.abs(z - L.volleyball.z) < 5) return true;
+  const vbAlongZ = L.volleyball.along === 'z';
+  if (Math.abs(x - L.volleyball.x) < (vbAlongZ ? 5 : 9) && Math.abs(z - L.volleyball.z) < (vbAlongZ ? 9 : 5)) return true;
   const sf = L.strawberries;
   if (Math.abs(x - sf.x) < sf.w / 2 + 1 && Math.abs(z - sf.z) < sf.d / 2 + 1) return true;
   if (Math.hypot(x - L.amphitheater.x, z - L.amphitheater.z) < 11) return true;

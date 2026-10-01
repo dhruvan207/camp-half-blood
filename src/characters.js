@@ -3,8 +3,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { groundAt, LAYOUT, cabin, inFrontOf } from './terrain.js';
 import { bigHouseSpot } from './buildings.js';
 
-// Abstand vor der Hüttentür, an dem die Figuren stehen
-const FRONT = 5.3;
+// Abstand vor der Hütte, an dem die Figuren stehen: vor Veranda/Stufen plus 0,9 m Platz
+const FRONT = (nr) => cabin(nr).size.front + 0.9;
 
 // Figuren aus Camp Half-Blood, selbst gebaut aus Grundformen.
 // Aussehen nach den Beschreibungen im Buch „Diebe im Olymp“.
@@ -572,7 +572,7 @@ const FIGURES = [
     id: 'percy',
     name: 'Percy Jackson',
     height: 1.52,
-    place: () => ({ ...inFrontOf(cabin(3), FRONT), faceTo: LAYOUT.campfire }),
+    place: () => ({ ...inFrontOf(cabin(3), FRONT(3)), faceTo: LAYOUT.campfire }),
     make: () =>
       buildHuman(
         campShirt({
@@ -593,7 +593,7 @@ const FIGURES = [
     id: 'annabeth',
     name: 'Annabeth Chase',
     height: 1.52,
-    place: () => ({ ...inFrontOf(cabin(6), FRONT), faceTo: LAYOUT.campfire }),
+    place: () => ({ ...inFrontOf(cabin(6), FRONT(6)), faceTo: LAYOUT.campfire }),
     make: () =>
       buildHuman(
         campShirt({
@@ -658,7 +658,7 @@ const FIGURES = [
     id: 'luke',
     name: 'Luke Castellan',
     height: 1.83,
-    place: () => ({ ...inFrontOf(cabin(11), FRONT), faceTo: LAYOUT.start }),
+    place: () => ({ ...inFrontOf(cabin(11), FRONT(11)), faceTo: LAYOUT.start }),
     make: () =>
       buildHuman(
         campShirt({
@@ -693,21 +693,21 @@ const FIGURES = [
     id: 'travis',
     name: 'Travis Stoll',
     height: 1.72,
-    place: () => ({ ...inFrontOf(cabin(11), FRONT + 0.3), dz: 1.5, faceTo: LAYOUT.start }),
+    place: () => ({ ...inFrontOf(cabin(11), FRONT(11) + 0.3), dz: 1.5, faceTo: LAYOUT.start }),
     make: () => buildHuman(campShirt(stoll('Travis', 'down', 'pocket'))),
   },
   {
     id: 'connor',
     name: 'Connor Stoll',
     height: 1.66,
-    place: () => ({ ...inFrontOf(cabin(11), FRONT + 0.3), dz: -1.5, faceTo: LAYOUT.start }),
+    place: () => ({ ...inFrontOf(cabin(11), FRONT(11) + 0.3), dz: -1.5, faceTo: LAYOUT.start }),
     make: () => buildHuman(campShirt(stoll('Connor', 'pocket', 'down'))),
   },
   {
     id: 'clarisse',
     name: 'Clarisse La Rue',
     height: 1.72,
-    place: () => ({ ...inFrontOf(cabin(5), FRONT), faceTo: LAYOUT.campfire }),
+    place: () => ({ ...inFrontOf(cabin(5), FRONT(5)), faceTo: LAYOUT.campfire }),
     make: () =>
       buildHuman({
         name: 'Clarisse',
@@ -731,7 +731,7 @@ const FIGURES = [
     id: 'argus',
     name: 'Argus',
     height: 1.95,
-    place: () => ({ ...bigHouseSpot(-2.6, 9.6, 0), y: undefined }), // vor der Verandatreppe
+    place: () => ({ ...bigHouseSpot(-2.6, 10.4, 0), y: undefined }), // vor der Verandatreppe
     make: () =>
       buildHuman({
         name: 'Argus',
@@ -770,7 +770,7 @@ const FIGURES = [
     id: 'mrd',
     name: 'Mr. D (Dionysos)',
     height: 1.62,
-    place: () => bigHouseSpot(4.3, 5.8, -Math.PI / 2), // auf der Veranda am Kartentisch
+    place: () => bigHouseSpot(4.3, 6.2, -Math.PI / 2), // auf der Veranda am Kartentisch
     make: () =>
       buildHuman({
         name: 'MrD',
@@ -815,7 +815,7 @@ const FIGURES = [
     id: 'chiron',
     name: 'Chiron',
     height: 1.0, // der Zentaur wird unten direkt in Metern gebaut
-    place: () => bigHouseSpot(1.6, 5.8, Math.PI / 2), // auf der Veranda, Mr. D gegenüber
+    place: () => bigHouseSpot(1.4, 6.2, Math.PI / 2), // auf der Veranda, Mr. D gegenüber
     make: buildChiron,
   },
 ];

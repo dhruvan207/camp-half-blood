@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Kit, mat4, materials, canvasTexture, rng } from './kit.js';
-import { LAYOUT, heightAt } from './terrain.js';
+import { LAYOUT, heightAt, inFrontOf } from './terrain.js';
 
 // Die zwölf Hütten. Jede Hütte wird in eigenen Koordinaten gebaut:
 // Tür vorne (+z), Mitte bei (0,0,0). Danach wird sie an ihren Platz gedreht.
@@ -55,30 +55,54 @@ function onFace(k, o, face, u, y, fn, out = 0.02) {
   else k.at(p[0], y, p[1], p[2], fn);
 }
 
-function windowAt(k, o, face, u, y, { w = 0.85, h = 1.0, frame = TRIM, glass = GLASS, curtains = null, frameBucket = 'plain', box = null } = {}) {
+function windowAt(k, o, face, u, y, { w = 0.85, h = 1.0, frame = TRIM, glass = GLASS, curtains = null, frameBucket = 'plain', box = null, shutters = null } = {}) {
   onFace(k, o, face, u, y, () => {
-    k.box('glass', glass, w, h, 0.05, 0, 0, 0);
+    // Glas leicht nach innen versetzt, damit die Fensterlaibung Tiefe bekommt
+    k.box('glass', glass, w, h, 0.04, 0, 0, -0.04);
+    k.box('plain', '#1c1f24', w + 0.04, h + 0.04, 0.02, 0, 0, -0.08);
     if (curtains) {
-      k.box('plain', curtains, w * 0.28, h * 0.92, 0.02, -w * 0.33, 0, 0.03);
-      k.box('plain', curtains, w * 0.28, h * 0.92, 0.02, w * 0.33, 0, 0.03);
+      k.box('plain', curtains, w * 0.28, h * 0.92, 0.02, -w * 0.33, 0, -0.01);
+      k.box('plain', curtains, w * 0.28, h * 0.92, 0.02, w * 0.33, 0, -0.01);
     }
-    const t = 0.08;
-    k.box(frameBucket, frame, w + t * 2, t, 0.1, 0, h / 2 + t / 2, 0);
-    k.box(frameBucket, frame, w + t * 2, t * 1.4, 0.16, 0, -h / 2 - t / 2, 0.03);
-    k.box(frameBucket, frame, t, h, 0.1, -w / 2 - t / 2, 0, 0);
-    k.box(frameBucket, frame, t, h, 0.1, w / 2 + t / 2, 0, 0);
-    k.box(frameBucket, frame, t * 0.6, h, 0.06, 0, 0, 0.02);
+    const t = 0.07;
+    // Fensterflügel-Rahmen mit Sprossenkreuz
+    k.box(frameBucket, frame, w + t * 2, t, 0.08, 0, h / 2 + t / 2, 0);
+    k.box(frameBucket, frame, t, h, 0.08, -w / 2 - t / 2, 0, 0);
+    k.box(frameBucket, frame, t, h, 0.08, w / 2 + t / 2, 0, 0);
+    k.box(frameBucket, frame, t * 0.55, h, 0.05, 0, 0, -0.01);
+    k.box(frameBucket, frame, w, t * 0.55, 0.05, 0, 0, -0.01);
+    // Verkleidung außen: breite Bretter, Sturz oben, Fensterbank unten
+    const c = 0.12;
+    k.box(frameBucket, frame, c, h + 0.2, 0.05, -w / 2 - t - c / 2, 0, 0.02);
+    k.box(frameBucket, frame, c, h + 0.2, 0.05, w / 2 + t + c / 2, 0, 0.02);
+    k.box(frameBucket, frame, w + t * 2 + c * 2 + 0.12, 0.16, 0.08, 0, h / 2 + t + 0.08, 0.03);
+    k.box(frameBucket, frame, w + t * 2 + c * 2 + 0.1, 0.06, 0.2, 0, -h / 2 - 0.06, 0.07);
+    if (shutters) for (const s of [-1, 1]) k.box('wood', shutters, w * 0.48, h + 0.1, 0.04, s * (w / 2 + t + c + w * 0.26), 0, 0.03);
     if (box) box(w);
   });
 }
 
-function door(k, o, { color = '#5a3b26', bucket = 'wood', w = 1.1, h = 2.15, frame = TRIM, frameBucket = 'plain' } = {}) {
+function door(k, o, { color = '#5a3b26', bucket = 'wood', w = 1.1, h = 2.15, frame = TRIM, frameBucket = 'plain', lamp = true } = {}) {
   const y = o.floor + h / 2;
-  k.box(bucket, color, w, h, 0.08, 0, y, o.d / 2 + 0.04);
-  k.box(frameBucket, frame, w + 0.24, 0.12, 0.14, 0, o.floor + h + 0.06, o.d / 2 + 0.05);
-  k.box(frameBucket, frame, 0.12, h, 0.14, -w / 2 - 0.06, y, o.d / 2 + 0.05);
-  k.box(frameBucket, frame, 0.12, h, 0.14, w / 2 + 0.06, y, o.d / 2 + 0.05);
-  k.sphere('bronze', '#c9953f', 0.045, w * 0.35, o.floor + 1.05, o.d / 2 + 0.12);
+  const z = o.d / 2;
+  k.box(bucket, color, w, h, 0.08, 0, y, z + 0.02);
+  // Kassetten (vier erhabene Felder)
+  const panel = new THREE.Color(color).multiplyScalar(1.12).getStyle();
+  for (const px of [-1, 1]) for (const py of [0.27, 0.7]) k.box(bucket, panel, w * 0.32, h * (py < 0.5 ? 0.36 : 0.3), 0.03, px * w * 0.2, o.floor + h * py, z + 0.07);
+  // Türrahmen und Verkleidung
+  k.box(frameBucket, frame, w + 0.36, 0.18, 0.12, 0, o.floor + h + 0.09, z + 0.05);
+  k.box(frameBucket, frame, 0.15, h, 0.12, -w / 2 - 0.075, y, z + 0.05);
+  k.box(frameBucket, frame, 0.15, h, 0.12, w / 2 + 0.075, y, z + 0.05);
+  k.box('wood', '#6e5a46', w + 0.2, 0.05, 0.3, 0, o.floor + 0.02, z + 0.12); // Schwelle
+  k.sphere('bronze', '#c9953f', 0.045, w * 0.36, o.floor + 1.05, z + 0.12);
+  if (lamp) {
+    // Wandlampe neben der Tür
+    const lx = -(w / 2 + 0.28); // links neben der Tür (der Griff ist rechts)
+    k.box('metal', '#2b2d30', 0.06, 0.06, 0.18, lx, o.floor + 2.0, z + 0.09);
+    k.box('metal', '#2b2d30', 0.2, 0.04, 0.2, lx, o.floor + 2.1, z + 0.2);
+    k.box('glow', '#ffe0a8', 0.15, 0.2, 0.15, lx, o.floor + 1.98, z + 0.2);
+    k.box('metal', '#2b2d30', 0.2, 0.03, 0.2, lx, o.floor + 1.86, z + 0.2);
+  }
 }
 
 // Messingnummer über der Tür
@@ -92,40 +116,91 @@ function numberPlate(k, o, nr, y) {
   k.add(geo, 'numbers', '#ffffff', mat4(0, y, o.d / 2 + 0.1), { keepUV: true });
 }
 
-function steps(k, o, { bucket = 'stone', color = '#8b857b', width = 1.8 } = {}) {
-  const n = Math.max(1, Math.round(o.floor / 0.2));
-  const sh = o.floor / n;
+// Eingang: Holzveranda mit Geländer (Standard) oder Steinstufen. Gibt zurück, wie weit er vorsteht.
+function entry(k, o, { bucket = 'wood', color = '#9a7f62', width = 1.8, deck = bucket === 'wood' } = {}) {
+  const z0 = o.d / 2;
+  if (!deck) {
+    const n = Math.max(1, Math.round(o.floor / 0.2));
+    const sh = o.floor / n;
+    for (let i = 0; i < n; i++) {
+      const depth = (n - i) * 0.35;
+      k.box(bucket, color, width, sh, depth, 0, sh * (i + 0.5), z0 + depth / 2);
+    }
+    return n * 0.35;
+  }
+  const dw = 2.8;
+  const dd = 1.3;
+  const f = o.floor;
+  // Plattform auf Pfosten
+  k.box('wood', color, dw, 0.08, dd, 0, f - 0.04, z0 + dd / 2);
+  for (let i = 0; i < 9; i++) k.box('wood', new THREE.Color(color).multiplyScalar(0.85 + (i % 2) * 0.15).getStyle(), dw, 0.085, 0.02, 0, f - 0.035, z0 + 0.07 + i * 0.145);
+  k.box('wood', '#5a4634', dw, f - 0.08, 0.06, 0, (f - 0.08) / 2, z0 + dd - 0.03);
+  for (const s of [-1, 1]) {
+    k.box('wood', '#5a4634', 0.06, f - 0.08, dd, s * (dw / 2 - 0.03), (f - 0.08) / 2, z0 + dd / 2);
+    // Geländer an den Seiten und vorne neben der Treppe
+    const px = s * (dw / 2 - 0.05);
+    k.box('wood', '#7a644c', 0.08, 0.95, 0.08, px, f + 0.47, z0 + dd - 0.05);
+    k.box('wood', '#7a644c', 0.06, 0.06, dd, px, f + 0.92, z0 + dd / 2);
+    for (let t = 0.2; t < dd - 0.1; t += 0.22) k.box('wood', '#7a644c', 0.035, 0.85, 0.035, px, f + 0.45, z0 + t);
+    k.box('wood', '#7a644c', dw / 2 - 0.75, 0.06, 0.06, s * (0.75 + (dw / 2 - 0.75) / 2), f + 0.92, z0 + dd - 0.05);
+    for (let t = 0.85; t < dw / 2 - 0.1; t += 0.22) k.box('wood', '#7a644c', 0.035, 0.85, 0.035, s * t, f + 0.45, z0 + dd - 0.05);
+  }
+  // zwei Holzstufen
+  const n = 2;
   for (let i = 0; i < n; i++) {
-    const depth = (n - i) * 0.35;
-    k.box(bucket, color, width, sh, depth, 0, sh * (i + 0.5), o.d / 2 + depth / 2);
+    const sh = f / (n + 1);
+    k.box('wood', color, 1.4, 0.06, 0.3, 0, sh * (i + 1) - 0.03, z0 + dd + 0.3 * (n - i) - 0.15);
+    k.box('wood', '#5a4634', 1.4, sh * (i + 1) - 0.06, 0.04, 0, (sh * (i + 1) - 0.06) / 2, z0 + dd + 0.3 * (n - i) - 0.02);
+  }
+  for (const s of [-1, 1]) k.box('wood', '#5a4634', 0.06, f, 0.65, s * 0.72, f / 2 - 0.05, z0 + dd + 0.3);
+  return dd + 0.6;
+}
+
+// Regenrinnen an beiden Traufen und Fallrohre an den vorderen Ecken
+function gutters(k, o, eaveY, overhang) {
+  const { w, d } = o;
+  for (const s of [-1, 1]) {
+    k.cyl('metal', '#8d9296', 0.06, 0.06, d + overhang * 2, s * (w / 2 + overhang + 0.03), eaveY - 0.08, 0, 8, Math.PI / 2);
+    k.cyl('metal', '#8d9296', 0.04, 0.04, eaveY - 0.1, s * (w / 2 + 0.12), (eaveY - 0.1) / 2, d / 2 - 0.25, 6);
+    k.limb('metal', '#8d9296', v(s * (w / 2 + 0.12), eaveY - 0.1, d / 2 - 0.25), v(s * (w / 2 + overhang), eaveY - 0.08, d / 2 - 0.25), 0.04, 6);
   }
 }
 
 // Standard-Holzhütte mit Satteldach
 function shell(k, o) {
   const { w, d, h, floor } = o;
-  k.box(o.baseBucket ?? 'stone', o.baseColor ?? '#7d776d', w + 0.25, floor, d + 0.25, 0, floor / 2, 0);
-  k.box(o.wall, o.wallColor, w, h, d, 0, floor + h / 2, 0);
-  // Ecken und Traufe
+  // heller Natursteinsockel
+  k.box(o.baseBucket ?? 'stone', o.baseColor ?? '#d6cfc2', w + 0.25, floor, d + 0.25, 0, floor / 2, 0);
+  k.wall(o.wall, o.wallColor, w, h, d, 0, floor + h / 2, 0);
+  const trimB = o.trimBucket ?? 'plain';
+  const trimC = o.trim ?? TRIM;
+  // Eckbretter und Sockelbrett
   if (o.corners !== false) {
-    for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      k.box(o.trimBucket ?? 'plain', o.trim ?? TRIM, 0.16, h, 0.16, (x * w) / 2, floor + h / 2, (z * d) / 2);
-    }
+    for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) k.box(trimB, trimC, 0.16, h, 0.16, (x * w) / 2, floor + h / 2, (z * d) / 2);
+    k.box(trimB, trimC, w + 0.08, 0.2, d + 0.08, 0, floor + 0.1, 0);
   }
   const rh = o.roofH ?? 1.7;
+  const over = o.overhang ?? 0.45;
   if (o.roof !== 'none') {
     k.gableWall(o.gableBucket ?? o.wall, o.gableColor ?? o.wallColor, w, rh, 0, floor + h, d / 2 - 0.1, 0, 0.2);
     k.gableWall(o.gableBucket ?? o.wall, o.gableColor ?? o.wallColor, w, rh, 0, floor + h, -d / 2 + 0.1, 0, 0.2);
-    k.gable(o.roofBucket ?? 'roof', o.roofColor ?? '#8a8580', w, d, rh, 0, floor + h, 0, o.overhang ?? 0.45, o.roofThick ?? 0.14);
+    k.gable(o.roofBucket ?? 'roof', o.roofColor ?? '#8a8580', w, d, rh, 0, floor + h, 0, over, o.roofThick ?? 0.14, o.fascia === false ? null : o.fascia ?? trimC, trimB);
+    if (o.gutters !== false) gutters(k, o, floor + h, over);
+    if (o.stovepipe) {
+      const sx = w * 0.24;
+      const y = floor + h + rh * (1 - (sx + 0.1) / (w / 2 + over)) - 0.15;
+      k.cyl('metal', '#2e3033', 0.11, 0.11, 1.4, sx, y + 0.7, -d * 0.25, 10);
+      k.cone('metal', '#2e3033', 0.22, 0.18, sx, y + 1.5, -d * 0.25, 10);
+    }
   }
-  if (o.steps !== false) steps(k, o, o.stepStyle);
+  o.frontExtra = o.steps === false ? 0 : entry(k, o, o.stepStyle);
   door(k, o, o.door ?? {});
-  numberPlate(k, o, o.nr, floor + 2.5);
+  numberPlate(k, o, o.nr, floor + 2.55);
   for (const side of ['left', 'right']) {
     for (const u of [-d * 0.22, d * 0.22]) windowAt(k, o, side, u, floor + 1.55, o.win ?? {});
   }
-  windowAt(k, o, 'front', -w * 0.3, floor + 1.55, { ...(o.win ?? {}), w: 0.7 });
-  windowAt(k, o, 'front', w * 0.3, floor + 1.55, { ...(o.win ?? {}), w: 0.7 });
+  windowAt(k, o, 'front', -w * 0.31, floor + 1.55, { ...(o.win ?? {}), w: 0.7 });
+  windowAt(k, o, 'front', w * 0.31, floor + 1.55, { ...(o.win ?? {}), w: 0.7 });
   windowAt(k, o, 'back', 0, floor + 1.55, o.win ?? {});
 }
 
@@ -135,6 +210,7 @@ function temple(k, o) {
   const podium = 0.9;
   const portico = 2.4;
   const cellaD = d - portico;
+  k.box('marble', '#e4dfd4', w + 1.4, 1.2, d + 1.4, 0, -0.6, 0); // Fundament (am Strand fällt der Boden leicht ab)
   for (let i = 0; i < 3; i++) {
     const inset = i * 0.35;
     k.box('marble', '#f1eee6', w + 1.4 - inset * 2, 0.3, d + 1.4 - inset * 2, 0, 0.15 + i * 0.3, 0);
@@ -220,12 +296,12 @@ function vine(k, rand, from, height, { leaf = '#3f7a2e', stem = '#4d6b2a', fruit
 }
 
 // ---------------------------------------------------------------------------
-const DEFAULT = { w: 5.4, d: 7.2, h: 3, floor: 0.45 };
+const DEFAULT = { w: 4.8, d: 7.2, h: 3, floor: 0.45, overhang: 0.35 };
 
 const BUILDERS = {
   // Zeus: wie ein weißes Marmor-Bankgebäude mit großen Säulen, polierte Bronzetüren mit Blitzen
   1(k) {
-    const o = { w: 8, d: 9.5, h: 5.2, nr: 1 };
+    const o = { w: 7.5, d: 9.5, h: 5.2, nr: 1 };
     const t = temple(k, o);
     // Blitze auf den Bronzetüren (leuchtend)
     bolt(k, 'glow', '#fff4b0', 0.62, -0.5, t.top + t.dh / 2, t.doorZ + 0.07, 0.2);
@@ -236,7 +312,7 @@ const BUILDERS = {
     // Adler-Akroterion oben auf dem Giebel
     k.sphere('bronze', '#b8873a', 0.2, 0, t.top + o.h + 2.5, o.d / 2 + 0.1, 1, 0.8, 1.4);
     for (const s of [-1, 1]) k.box('bronze', '#b8873a', 0.8, 0.05, 0.3, s * 0.45, t.top + o.h + 2.6, o.d / 2 + 0.1, 0, 0, s * 0.35);
-    return { w: o.w + 1.4, d: o.d + 1.4 };
+    return { w: o.w + 1.4, d: o.d + 1.4, frontExtra: 0 };
   },
 
   // Hera: anmutiger, schlankere Säulen mit Granatäpfeln und Blumen, Pfauen in den Wänden
@@ -280,12 +356,12 @@ const BUILDERS = {
     peacock(2.2, t.top + 2.2, cellaFront, 0, 1);
     peacock(-(o.w - 2.2) / 2 - 0.03, t.top + 2.4, -1.2, -Math.PI / 2, 1.1);
     peacock((o.w - 2.2) / 2 + 0.03, t.top + 2.4, -1.2, Math.PI / 2, 1.1);
-    return { w: o.w + 1.4, d: o.d + 1.4 };
+    return { w: o.w + 1.4, d: o.d + 1.4, frontExtra: 0 };
   },
 
   // Poseidon: niedrig, lang und massiv, rauer grauer Stein mit Muscheln und Korallen
   3(k, rand) {
-    const o = { w: 5.8, d: 10.5, h: 2.6, floor: 0.3, nr: 3, wall: 'coral', wallColor: '#b4bcc0', roof: true, roofH: 0.9, roofBucket: 'coral', roofColor: '#8f989c', gableBucket: 'coral', gableColor: '#b4bcc0', corners: false, overhang: 0.25, roofThick: 0.25, door: { color: '#2f6f6a', bucket: 'wood' }, win: { frame: '#9aa3a6', w: 0.6, h: 0.7 } };
+    const o = { w: 5.0, d: 10.5, h: 2.6, floor: 0.3, nr: 3, wall: 'coral', wallColor: '#b4bcc0', roof: true, roofH: 0.9, roofBucket: 'coral', roofColor: '#8f989c', gableBucket: 'coral', gableColor: '#b4bcc0', corners: false, overhang: 0.25, roofThick: 0.25, door: { color: '#2f6f6a', bucket: 'wood' }, win: { frame: '#9aa3a6', w: 0.6, h: 0.7 }, stepStyle: { bucket: 'coral', color: '#a3abae' }, fascia: false, gutters: false };
     shell(k, o);
     // Muscheln in den Wänden
     const shellCols = ['#f3e6da', '#f2c9c0', '#fbf6ee', '#e8d2b0'];
@@ -334,7 +410,7 @@ const BUILDERS = {
 
   // Demeter: Tomatenranken an den Wänden, Dach aus echtem Gras
   4(k, rand) {
-    const o = { ...DEFAULT, nr: 4, wall: 'wood', wallColor: '#d8c39b', roofBucket: 'grassRoof', roofColor: '#b8e07a', roofThick: 0.35, door: { color: '#6a8f3a' }, win: { frame: '#f6f1e3', curtains: '#f2e2b8' } };
+    const o = { ...DEFAULT, nr: 4, wall: 'wood', wallColor: '#d8c39b', roofBucket: 'grassRoof', roofColor: '#b8e07a', roofThick: 0.35, door: { color: '#6a8f3a' }, win: { frame: '#f6f1e3', curtains: '#f2e2b8', shutters: '#6a8f3a' }, stovepipe: true };
     shell(k, o);
     // Grasbüschel am Dachrand
     for (let i = 0; i < 40; i++) {
@@ -361,8 +437,8 @@ const BUILDERS = {
     k.cyl('plain', '#8a5c2e', 0.07, 0.07, 0.06, 0, y - 0.1, z, 8, Math.PI / 2);
     // Gemüsebeete vor der Hütte
     for (const s of [-1, 1]) {
-      k.box('wood', '#6b4a2e', 1.4, 0.25, 0.7, s * 2, 0.12, o.d / 2 + 0.7);
-      for (let i = 0; i < 6; i++) k.sphere('leaf', '#5c9a34', 0.14, s * 2 + (i - 2.5) * 0.22, 0.32, o.d / 2 + 0.7, 1, 0.7, 1, 6);
+      k.box('wood', '#6b4a2e', 0.9, 0.25, 1.2, s * 2.2, 0.12, o.d / 2 + 0.7);
+      for (let i = 0; i < 6; i++) k.sphere('leaf', '#5c9a34', 0.14, s * 2.2 + ((i % 2) - 0.5) * 0.35, 0.32, o.d / 2 + 0.25 + Math.floor(i / 2) * 0.4, 1, 0.7, 1, 6);
     }
     return o;
   },
@@ -413,7 +489,7 @@ const BUILDERS = {
 
   // Athene: grau, mit einer geschnitzten Eule über der Tür
   6(k) {
-    const o = { ...DEFAULT, nr: 6, wall: 'plaster', wallColor: '#b3b5b3', gableBucket: 'plaster', gableColor: '#a9aba9', roofColor: '#5f646a', door: { color: '#48505a' }, win: { frame: '#f0f0ec', curtains: '#f6f6f2' } };
+    const o = { ...DEFAULT, nr: 6, wall: 'plaster', wallColor: '#b3b5b3', gableBucket: 'plaster', gableColor: '#a9aba9', roofColor: '#5f646a', door: { color: '#48505a' }, win: { frame: '#f0f0ec', curtains: '#f6f6f2', shutters: '#5c636b' } };
     shell(k, o);
     const y = o.floor + 3.1;
     const z = o.d / 2 + 0.2;
@@ -440,7 +516,7 @@ const BUILDERS = {
 
   // Apollon: aus massivem Gold, das in der Sonne fast blendet
   7(k) {
-    const o = { ...DEFAULT, nr: 7, wall: 'gold', wallColor: '#f0c24a', gableBucket: 'gold', gableColor: '#f3c850', roofBucket: 'gold', roofColor: '#e0a83a', trimBucket: 'gold', trim: '#ffd970', baseBucket: 'gold', baseColor: '#d9a53a', door: { color: '#c9922e', bucket: 'gold', frameBucket: 'gold', frame: '#ffd970' }, win: { frameBucket: 'gold', frame: '#ffd970', glass: '#5a4a2a' }, stepStyle: { bucket: 'gold', color: '#d9a53a' } };
+    const o = { ...DEFAULT, nr: 7, wall: 'gold', wallColor: '#f0c24a', gableBucket: 'gold', gableColor: '#f3c850', roofBucket: 'gold', roofColor: '#e0a83a', trimBucket: 'gold', trim: '#ffd970', baseBucket: 'gold', baseColor: '#d9a53a', door: { color: '#c9922e', bucket: 'gold', frameBucket: 'gold', frame: '#ffd970' }, win: { frameBucket: 'gold', frame: '#ffd970', glass: '#5a4a2a' }, stepStyle: { bucket: 'gold', color: '#d9a53a' }, gutters: false };
     shell(k, o);
     // Sonne über der Tür
     const y = o.floor + 3.2;
@@ -451,19 +527,21 @@ const BUILDERS = {
       k.cone('gold', '#ffd35c', 0.06, 0.28, Math.cos(a) * 0.42, y + Math.sin(a) * 0.42, z, 5, 0, 0, a - Math.PI / 2);
     }
     // Leier neben der Tür
+    // zwei Leiern im Giebel links und rechts der Sonne
     for (const s of [-1, 1]) {
-      const x = s * 1.65;
-      k.add(new THREE.TorusGeometry(0.22, 0.025, 6, 16, Math.PI), 'gold', '#ffd35c', mat4(x, o.floor + 2.35, z, 0, 0, Math.PI));
-      for (const t of [-1, 1]) k.limb('gold', '#ffd35c', v(x + t * 0.22, o.floor + 2.35, z), v(x + t * 0.2, o.floor + 2.8, z), 0.022, 5);
-      k.box('gold', '#ffd35c', 0.5, 0.04, 0.04, x, o.floor + 2.8, z);
-      for (const t of [-0.08, 0, 0.08]) k.limb('plain', '#fff4d0', v(x + t, o.floor + 2.2, z + 0.02), v(x + t, o.floor + 2.8, z + 0.02), 0.004, 3);
+      const x = s * 1.0;
+      const ly = o.floor + 3.05;
+      k.add(new THREE.TorusGeometry(0.16, 0.022, 6, 16, Math.PI), 'gold', '#ffd35c', mat4(x, ly, z, 0, 0, Math.PI));
+      for (const t of [-1, 1]) k.limb('gold', '#ffd35c', v(x + t * 0.16, ly, z), v(x + t * 0.14, ly + 0.36, z), 0.02, 5);
+      k.box('gold', '#ffd35c', 0.36, 0.035, 0.035, x, ly + 0.36, z);
+      for (const t of [-0.06, 0, 0.06]) k.limb('plain', '#fff4d0', v(x + t, ly - 0.12, z + 0.02), v(x + t, ly + 0.36, z + 0.02), 0.004, 3);
     }
     return o;
   },
 
   // Artemis: silbern, schimmert wie Mondlicht
   8(k, rand) {
-    const o = { ...DEFAULT, nr: 8, wall: 'silver', wallColor: '#dfe5ee', gableBucket: 'silver', gableColor: '#e6ebf2', roofBucket: 'silver', roofColor: '#b9c3d0', trimBucket: 'silver', trim: '#f4f7fb', door: { color: '#a9b4c2', bucket: 'silver', frameBucket: 'silver', frame: '#f4f7fb' }, win: { frameBucket: 'silver', frame: '#f4f7fb', glass: '#39445a' } };
+    const o = { ...DEFAULT, nr: 8, wall: 'silver', wallColor: '#dfe5ee', gableBucket: 'silver', gableColor: '#e6ebf2', roofBucket: 'silver', roofColor: '#b9c3d0', trimBucket: 'silver', trim: '#f4f7fb', door: { color: '#a9b4c2', bucket: 'silver', frameBucket: 'silver', frame: '#f4f7fb' }, win: { frameBucket: 'silver', frame: '#f4f7fb', glass: '#39445a' }, gutters: false, stepStyle: { bucket: 'silver', color: '#c9d1dc' } };
     shell(k, o);
     // Mondsichel
     const y = o.floor + 3.2;
@@ -484,7 +562,7 @@ const BUILDERS = {
 
   // Hephaistos: Metallwände mit Nieten, Schornsteine wie eine kleine Fabrik
   9(k, rand, extras) {
-    const o = { ...DEFAULT, nr: 9, wall: 'metal', wallColor: '#9aa0a6', gableBucket: 'metal', gableColor: '#8d9399', roofBucket: 'metal', roofColor: '#5d6268', trimBucket: 'metal', trim: '#6c7177', roofH: 1.2, door: { color: '#4a4e53', bucket: 'metal', frameBucket: 'metal', frame: '#3a3d41' }, win: { frameBucket: 'metal', frame: '#3a3d41', glass: '#3a2d24' } };
+    const o = { ...DEFAULT, nr: 9, wall: 'metal', wallColor: '#9aa0a6', gableBucket: 'metal', gableColor: '#8d9399', roofBucket: 'metal', roofColor: '#5d6268', trimBucket: 'metal', trim: '#6c7177', roofH: 1.2, door: { color: '#4a4e53', bucket: 'metal', frameBucket: 'metal', frame: '#3a3d41' }, win: { frameBucket: 'metal', frame: '#3a3d41', glass: '#3a2d24' }, stepStyle: { bucket: 'metal', color: '#55595e' } };
     shell(k, o);
     // Nieten
     for (const face of ['front', 'left', 'right']) {
@@ -506,8 +584,8 @@ const BUILDERS = {
       }
       k.cyl('bronze', '#8a5c2a', r * 0.3, r * 0.3, 0.1, x, y, o.d / 2 + 0.08, 8, Math.PI / 2);
     };
-    gear(-1.9, o.floor + 2.4, 0.3, 10);
-    gear(-1.45, o.floor + 2.85, 0.2, 8);
+    gear(-1.5, o.floor + 2.62, 0.22, 10);
+    gear(-1.05, o.floor + 2.75, 0.14, 8);
     // Hammer und Amboss über der Tür
     const y = o.floor + 3.05;
     const z = o.d / 2 + 0.15;
@@ -547,7 +625,7 @@ const BUILDERS = {
 
   // Hermes: ganz normale alte Sommerlager-Hütte, abgewetzte Schwelle, abblätternde braune Farbe, Äskulapstab über der Tür, völlig überfüllt
   11(k, rand) {
-    const o = { ...DEFAULT, w: 6, d: 8, nr: 11, wall: 'worn', wallColor: '#8b6547', gableBucket: 'worn', gableColor: '#7e5b40', roofColor: '#6a625a', trim: '#b8a58a', door: { color: '#6b4a32', bucket: 'worn' }, stepStyle: { bucket: 'wood', color: '#7a6048' }, win: { frame: '#b8a58a', curtains: '#c9b48c' } };
+    const o = { ...DEFAULT, w: 5.4, d: 8, nr: 11, wall: 'worn', wallColor: '#8b6547', gableBucket: 'worn', gableColor: '#7e5b40', roofColor: '#6a625a', trim: '#b8a58a', door: { color: '#6b4a32', bucket: 'worn' }, stepStyle: { bucket: 'wood', color: '#7a6048' }, win: { frame: '#b8a58a', curtains: '#c9b48c', shutters: '#5a4030' }, stovepipe: true };
     shell(k, o);
     // abgewetzte, durchgetretene Schwelle
     k.box('wood', '#9a8568', 1.3, 0.05, 0.3, 0, o.floor + 0.01, o.d / 2 + 0.12);
@@ -572,11 +650,12 @@ const BUILDERS = {
     const cols = ['#2f5f9a', '#b73a2e', '#3f7a3e', '#d8a13a', '#6b4a8a'];
     for (let i = 0; i < 5; i++) {
       const x = -2.6 + i * 0.5 + (i > 2 ? 3.2 : 0);
-      k.add(new THREE.CapsuleGeometry(0.18, 0.5, 4, 8), 'plain', cols[i], mat4(x > 0 ? x - 0.5 : x, 0.2, o.d / 2 + 0.5 + (i % 2) * 0.3, Math.PI / 2, 0.2 * i, 0));
+      // Schlafsäcke liegen auf der Veranda, so voll ist es drinnen
+      k.add(new THREE.CapsuleGeometry(0.17, 0.6, 4, 8), 'plain', cols[i], mat4(i < 3 ? -1.0 + i * 0.36 : 0.75 + (i - 3) * 0.36, o.floor + 0.17, o.d / 2 + 0.55 + (i % 2) * 0.15, Math.PI / 2, 0.1 * i, 0));
     }
     k.box('wood', '#8a6a44', 0.6, 0.45, 0.45, -2.3, 0.23, o.d / 2 + 1.3, 0.3);
     k.box('wood', '#7a5a3a', 0.5, 0.35, 0.4, -2.2, 0.62, o.d / 2 + 1.3, -0.2);
-    k.add(new THREE.CapsuleGeometry(0.22, 0.45, 4, 8), 'plain', '#4a5a3a', mat4(2.4, 0.25, o.d / 2 + 1.2, 0, 0, Math.PI / 2));
+    k.add(new THREE.CapsuleGeometry(0.22, 0.45, 4, 8), 'plain', '#4a5a3a', mat4(2.3, 0.25, o.d / 2 + 0.9, 0, 0, Math.PI / 2));
     // Wäscheleine
     k.limb('wood', '#6a5040', v(-o.w / 2 - 0.6, 0, o.d / 2 - 1), v(-o.w / 2 - 0.6, 2, o.d / 2 - 1), 0.04);
     k.limb('wood', '#6a5040', v(-o.w / 2 - 0.6, 0, -o.d / 2 + 1), v(-o.w / 2 - 0.6, 2, -o.d / 2 + 1), 0.04);
@@ -587,17 +666,17 @@ const BUILDERS = {
 
   // Dionysos: Weinranken und Trauben, Pergola vor der Tür
   12(k, rand) {
-    const o = { ...DEFAULT, nr: 12, wall: 'wood', wallColor: '#b88d6c', gableColor: '#a97f60', roofColor: '#6d4a64', trim: '#6b2e6b', door: { color: '#5a2a55', frame: '#6b2e6b' }, win: { frame: '#6b2e6b' } };
+    const o = { ...DEFAULT, nr: 12, wall: 'wood', wallColor: '#b88d6c', gableColor: '#a97f60', roofColor: '#6d4a64', trim: '#6b2e6b', door: { color: '#5a2a55', frame: '#6b2e6b' }, win: { frame: '#6b2e6b' }, stovepipe: true };
     shell(k, o);
     for (const face of ['left', 'right', 'back']) {
       for (const u of [-2.4, -0.8, 0.8, 2.4]) onFace(k, o, face, u, 0, () => vine(k, rand, v(0, 0.2, 0.08), o.floor + o.h, { fruit: '#5b2a6e', fruitR: 0.045, cluster: 4, leaf: '#4f7f34', spread: 0.25 }), 0);
     }
     // Pergola mit Weinreben vor der Tür
     const z0 = o.d / 2 + 0.3;
-    for (const [x, z] of [[-1.3, z0 + 1.8], [1.3, z0 + 1.8], [-1.3, z0], [1.3, z0]]) k.box('wood', '#7a5236', 0.14, 2.5, 0.14, x, 1.25, z);
-    for (const x of [-1.3, 1.3]) k.box('wood', '#6e4a30', 0.14, 0.14, 2.3, x, 2.55, z0 + 0.9);
-    for (let i = 0; i < 5; i++) k.box('wood', '#6e4a30', 3, 0.1, 0.1, 0, 2.66, z0 + i * 0.45);
-    for (let i = 0; i < 40; i++) k.sphere('leaf', i % 2 ? '#4f7f34' : '#5f9140', 0.22, (rand() - 0.5) * 3, 2.78, z0 + rand() * 1.8, 1, 0.4, 1, 6);
+    for (const [x, z] of [[-1.7, z0 + 1.8], [1.7, z0 + 1.8], [-1.7, z0], [1.7, z0]]) k.box('wood', '#7a5236', 0.14, 2.5, 0.14, x, 1.25, z);
+    for (const x of [-1.7, 1.7]) k.box('wood', '#6e4a30', 0.14, 0.14, 2.3, x, 2.55, z0 + 0.9);
+    for (let i = 0; i < 5; i++) k.box('wood', '#6e4a30', 3.8, 0.1, 0.1, 0, 2.66, z0 + i * 0.45);
+    for (let i = 0; i < 40; i++) k.sphere('leaf', i % 2 ? '#4f7f34' : '#5f9140', 0.22, (rand() - 0.5) * 3.6, 2.78, z0 + rand() * 1.8, 1, 0.4, 1, 6);
     for (let c = 0; c < 8; c++) {
       const cx = (rand() - 0.5) * 2.4;
       const cz = z0 + rand() * 1.8;
@@ -624,7 +703,7 @@ function flowerBox(k, rand, w) {
 
 // ---------------------------------------------------------------------------
 export function buildCabins(colliders) {
-  const k = new Kit();
+  const k = new Kit({ ao: heightAt });
   const extras = [];
   for (const c of LAYOUT.cabins) {
     const rand = rng('cabin' + c.nr);
@@ -635,7 +714,11 @@ export function buildCabins(colliders) {
       size = BUILDERS[c.nr](k, rand, local);
       for (const e of local) extras.push({ ...e, matrix: k.M.clone().multiply(e.local), cabin: c.nr });
     });
-    colliders.addBox(c.x, c.z, size.w / 2 + 0.1, size.d / 2 + 0.1, c.facing);
+    // Größe merken: so weit steht die Hütte samt Veranda/Stufen vor
+    const extra = size.frontExtra ?? 0;
+    c.size = { w: size.w, d: size.d, front: size.d / 2 + extra };
+    const mid = inFrontOf(c, extra / 2);
+    colliders.addBox(mid.x, mid.z, size.w / 2 + 0.1, size.d / 2 + extra / 2 + 0.1, c.facing);
   }
   const group = k.build();
   return { group, extras };

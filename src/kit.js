@@ -191,10 +191,16 @@ export function mat4(x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sx = 1, sy = s
   );
 }
 
+// Diese Materialien bekommen keine Boden-Abdunklung (leuchten oder sind Glas)
+const NO_AO = new Set(['glow', 'glass', 'numbers', 'fleece']);
+
 export class Kit {
-  constructor() {
+  // ao: Funktion (x, z) => Bodenhöhe. Dann werden Wände zum Boden hin dunkler,
+  // wie bei echtem Licht, das unten an der Hauswand weniger hinkommt.
+  constructor({ ao = null } = {}) {
     this.buckets = {};
     this.stack = [new THREE.Matrix4()];
+    this.ao = ao;
   }
 
   get M() {
@@ -236,7 +242,16 @@ export class Kit {
     }
     const c = new THREE.Color(color);
     const col = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) col.set([c.r, c.g, c.b], i * 3);
+    const ao = this.ao && !NO_AO.has(bucket) ? this.ao : null;
+    for (let i = 0; i < n; i++) {
+      let k = 1;
+      if (ao) {
+        const above = pos.getY(i) - ao(pos.getX(i), pos.getZ(i));
+        const t = Math.min(Math.max(above / 1.3, 0), 1);
+        k = 0.55 + 0.45 * t * t * (3 - 2 * t);
+      }
+      col.set([c.r * k, c.g * k, c.b * k], i * 3);
+    }
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     (this.buckets[bucket] ??= []).push(geo);
     return geo;
@@ -244,6 +259,10 @@ export class Kit {
 
   box(bucket, color, w, h, d, x, y, z, ry = 0, rx = 0, rz = 0) {
     return this.add(new THREE.BoxGeometry(w, h, d), bucket, color, mat4(x, y, z, rx, ry, rz));
+  }
+  // Wand-Quader mit mehreren Höhenstufen, damit die Abdunklung zum Boden weich verläuft
+  wall(bucket, color, w, h, d, x, y, z, ry = 0) {
+    return this.add(new THREE.BoxGeometry(w, h, d, 1, Math.max(2, Math.round(h / 0.5)), 1), bucket, color, mat4(x, y, z, 0, ry));
   }
   cyl(bucket, color, rt, rb, h, x, y, z, seg = 12, rx = 0, ry = 0, rz = 0) {
     return this.add(new THREE.CylinderGeometry(rt, rb, h, seg), bucket, color, mat4(x, y, z, rx, ry, rz));
@@ -263,13 +282,24 @@ export class Kit {
     return this.add(new THREE.CylinderGeometry(r, r, len, seg, 1), bucket, color, m);
   }
   // Satteldach: Breite w (x), Tiefe d (z), Höhe h, Überstand o
-  gable(bucket, color, w, d, h, x, y, z, o = 0.4, thick = 0.12) {
+  // trim: Farbe der Zierbretter an Traufe und Giebelkante (wie bei echten Häusern)
+  gable(bucket, color, w, d, h, x, y, z, o = 0.4, thick = 0.12, trim = null, trimBucket = 'plain') {
     const hw = w / 2 + o;
     const slope = Math.hypot(hw, h);
     const ang = Math.atan2(h, hw);
+    const L = d + o * 2;
     for (const s of [-1, 1]) {
-      this.box(bucket, color, slope, thick, d + o * 2, x + (s * hw) / 2, y + h / 2, z, 0, 0, -s * ang);
+      this.box(bucket, color, slope, thick, L, x + (s * hw) / 2, y + h / 2, z, 0, 0, -s * ang);
+      if (trim) {
+        // Traufbrett unten an der Dachkante
+        this.box(trimBucket, trim, 0.06, 0.22, L, x + s * (hw + 0.02), y - 0.06, z);
+        // Ortgangbretter an den Giebelseiten
+        for (const e of [-1, 1]) this.box(trimBucket, trim, slope + 0.08, 0.2, 0.06, x + (s * hw) / 2, y + h / 2 - 0.04, z + e * (L / 2 + 0.02), 0, 0, -s * ang);
+      }
     }
+    // Firstabdeckung
+    const ridge = new THREE.Color(color).multiplyScalar(0.8).getStyle();
+    this.box(bucket, ridge, 0.32, 0.12, L + 0.04, x, y + h + thick * 0.4, z);
   }
   // Giebeldreieck (Wandstück unter dem Dach)
   gableWall(bucket, color, w, h, x, y, z, ry = 0, depth = 0.2) {
