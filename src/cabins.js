@@ -1,0 +1,642 @@
+import * as THREE from 'three';
+import { Kit, mat4, materials, canvasTexture, rng } from './kit.js';
+import { LAYOUT, heightAt } from './terrain.js';
+
+// Die zwölf Hütten. Jede Hütte wird in eigenen Koordinaten gebaut:
+// Tür vorne (+z), Mitte bei (0,0,0). Danach wird sie an ihren Platz gedreht.
+// Aussehen nach den Beschreibungen im Buch, dazu passende Details.
+
+const v = (x, y, z) => new THREE.Vector3(x, y, z);
+const TRIM = '#f3efe6';
+const GLASS = '#2c3642';
+
+function numbersMaterial() {
+  const m = materials();
+  m.numbers ??= new THREE.MeshStandardMaterial({
+    map: canvasTexture(
+      512,
+      384,
+      (g) => {
+        g.clearRect(0, 0, 512, 384);
+        g.textAlign = 'center';
+        g.textBaseline = 'middle';
+        g.font = 'bold 96px Georgia, serif';
+        for (let n = 1; n <= 12; n++) {
+          const col = (n - 1) % 4;
+          const row = Math.floor((n - 1) / 4);
+          const x = col * 128 + 64;
+          const y = row * 128 + 68;
+          g.lineWidth = 8;
+          g.strokeStyle = '#4a3212';
+          g.strokeText(String(n), x, y);
+          g.fillStyle = '#e0b04c';
+          g.fillText(String(n), x, y);
+        }
+      },
+      { repeat: false },
+    ),
+    transparent: true,
+    alphaTest: 0.35,
+    metalness: 0.6,
+    roughness: 0.35,
+  });
+}
+
+// Hilfen für Wandflächen: face = 'front' | 'back' | 'left' | 'right'
+function onFace(k, o, face, u, y, fn, out = 0.02) {
+  const { w, d } = o;
+  const p = {
+    front: [u, d / 2 + out, 0],
+    back: [-u, -d / 2 - out, Math.PI],
+    left: [-w / 2 - out, -u, -Math.PI / 2],
+    right: [w / 2 + out, u, Math.PI / 2],
+  }[face];
+  if (face === 'front' || face === 'back') k.at(p[0], y, p[1], p[2], fn);
+  else k.at(p[0], y, p[1], p[2], fn);
+}
+
+function windowAt(k, o, face, u, y, { w = 0.85, h = 1.0, frame = TRIM, glass = GLASS, curtains = null, frameBucket = 'plain', box = null } = {}) {
+  onFace(k, o, face, u, y, () => {
+    k.box('glass', glass, w, h, 0.05, 0, 0, 0);
+    if (curtains) {
+      k.box('plain', curtains, w * 0.28, h * 0.92, 0.02, -w * 0.33, 0, 0.03);
+      k.box('plain', curtains, w * 0.28, h * 0.92, 0.02, w * 0.33, 0, 0.03);
+    }
+    const t = 0.08;
+    k.box(frameBucket, frame, w + t * 2, t, 0.1, 0, h / 2 + t / 2, 0);
+    k.box(frameBucket, frame, w + t * 2, t * 1.4, 0.16, 0, -h / 2 - t / 2, 0.03);
+    k.box(frameBucket, frame, t, h, 0.1, -w / 2 - t / 2, 0, 0);
+    k.box(frameBucket, frame, t, h, 0.1, w / 2 + t / 2, 0, 0);
+    k.box(frameBucket, frame, t * 0.6, h, 0.06, 0, 0, 0.02);
+    if (box) box(w);
+  });
+}
+
+function door(k, o, { color = '#5a3b26', bucket = 'wood', w = 1.1, h = 2.15, frame = TRIM, frameBucket = 'plain' } = {}) {
+  const y = o.floor + h / 2;
+  k.box(bucket, color, w, h, 0.08, 0, y, o.d / 2 + 0.04);
+  k.box(frameBucket, frame, w + 0.24, 0.12, 0.14, 0, o.floor + h + 0.06, o.d / 2 + 0.05);
+  k.box(frameBucket, frame, 0.12, h, 0.14, -w / 2 - 0.06, y, o.d / 2 + 0.05);
+  k.box(frameBucket, frame, 0.12, h, 0.14, w / 2 + 0.06, y, o.d / 2 + 0.05);
+  k.sphere('bronze', '#c9953f', 0.045, w * 0.35, o.floor + 1.05, o.d / 2 + 0.12);
+}
+
+// Messingnummer über der Tür
+function numberPlate(k, o, nr, y) {
+  numbersMaterial();
+  const geo = new THREE.PlaneGeometry(0.5, 0.5);
+  const col = (nr - 1) % 4;
+  const row = Math.floor((nr - 1) / 4);
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, (col + uv.getX(i)) / 4, 1 - (row + 1) / 3 + uv.getY(i) / 3);
+  k.add(geo, 'numbers', '#ffffff', mat4(0, y, o.d / 2 + 0.1), { keepUV: true });
+}
+
+function steps(k, o, { bucket = 'stone', color = '#8b857b', width = 1.8 } = {}) {
+  const n = Math.max(1, Math.round(o.floor / 0.2));
+  const sh = o.floor / n;
+  for (let i = 0; i < n; i++) {
+    const depth = (n - i) * 0.35;
+    k.box(bucket, color, width, sh, depth, 0, sh * (i + 0.5), o.d / 2 + depth / 2);
+  }
+}
+
+// Standard-Holzhütte mit Satteldach
+function shell(k, o) {
+  const { w, d, h, floor } = o;
+  k.box(o.baseBucket ?? 'stone', o.baseColor ?? '#7d776d', w + 0.25, floor, d + 0.25, 0, floor / 2, 0);
+  k.box(o.wall, o.wallColor, w, h, d, 0, floor + h / 2, 0);
+  // Ecken und Traufe
+  if (o.corners !== false) {
+    for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      k.box(o.trimBucket ?? 'plain', o.trim ?? TRIM, 0.16, h, 0.16, (x * w) / 2, floor + h / 2, (z * d) / 2);
+    }
+  }
+  const rh = o.roofH ?? 1.7;
+  if (o.roof !== 'none') {
+    k.gableWall(o.gableBucket ?? o.wall, o.gableColor ?? o.wallColor, w, rh, 0, floor + h, d / 2 - 0.1, 0, 0.2);
+    k.gableWall(o.gableBucket ?? o.wall, o.gableColor ?? o.wallColor, w, rh, 0, floor + h, -d / 2 + 0.1, 0, 0.2);
+    k.gable(o.roofBucket ?? 'roof', o.roofColor ?? '#8a8580', w, d, rh, 0, floor + h, 0, o.overhang ?? 0.45, o.roofThick ?? 0.14);
+  }
+  if (o.steps !== false) steps(k, o, o.stepStyle);
+  door(k, o, o.door ?? {});
+  numberPlate(k, o, o.nr, floor + 2.5);
+  for (const side of ['left', 'right']) {
+    for (const u of [-d * 0.22, d * 0.22]) windowAt(k, o, side, u, floor + 1.55, o.win ?? {});
+  }
+  windowAt(k, o, 'front', -w * 0.3, floor + 1.55, { ...(o.win ?? {}), w: 0.7 });
+  windowAt(k, o, 'front', w * 0.3, floor + 1.55, { ...(o.win ?? {}), w: 0.7 });
+  windowAt(k, o, 'back', 0, floor + 1.55, o.win ?? {});
+}
+
+// Griechischer Tempel (Zeus, Hera)
+function temple(k, o) {
+  const { w, d, h } = o;
+  const podium = 0.9;
+  const portico = 2.4;
+  const cellaD = d - portico;
+  for (let i = 0; i < 3; i++) {
+    const inset = i * 0.35;
+    k.box('marble', '#f1eee6', w + 1.4 - inset * 2, 0.3, d + 1.4 - inset * 2, 0, 0.15 + i * 0.3, 0);
+  }
+  const top = podium;
+  const cz = -d / 2 + cellaD / 2;
+  k.box('marble', '#f4f1ea', w - 2.2, h, cellaD, 0, top + h / 2, cz);
+  // Säulen
+  const colZ = d / 2 - 0.5;
+  const n = o.columns ?? 6;
+  const colR = o.colR ?? 0.3;
+  const colXs = [];
+  for (let i = 0; i < n; i++) colXs.push(-w / 2 + 0.45 + (i * (w - 0.9)) / (n - 1));
+  const sideZs = [colZ - 1.9, colZ - 3.8, colZ - 5.7].filter((z) => z > -d / 2 + 0.3);
+  const cols = [...colXs.map((x) => [x, colZ]), ...sideZs.flatMap((z) => [[-w / 2 + 0.45, z], [w / 2 - 0.45, z]])];
+  for (const [x, z] of cols) {
+    k.box('marble', '#ece8df', colR * 2.7, 0.22, colR * 2.7, x, top + 0.11, z);
+    k.cyl('marble', '#f6f3ec', colR * 0.88, colR, h - 0.5, x, top + 0.22 + (h - 0.5) / 2, z, 16);
+    // Kanneluren andeuten
+    for (let f = 0; f < 8; f++) {
+      const a = (f / 8) * Math.PI * 2;
+      k.box('marble', '#e2ddd2', 0.03, h - 0.7, 0.03, x + Math.cos(a) * colR * 0.95, top + 0.22 + (h - 0.5) / 2, z + Math.sin(a) * colR * 0.95);
+    }
+    k.cyl('marble', '#ece8df', colR * 1.35, colR * 0.9, 0.18, x, top + h - 0.19, z, 16);
+    k.box('marble', '#ece8df', colR * 2.8, 0.14, colR * 2.8, x, top + h - 0.05, z);
+  }
+  // Gebälk, Giebel, Dach
+  k.box('marble', '#ebe7de', w + 0.3, 0.75, d + 0.2, 0, top + h + 0.37, 0);
+  k.box('marble', '#ddd8cc', w + 0.45, 0.14, d + 0.35, 0, top + h + 0.78, 0);
+  const rh = 1.5;
+  k.gableWall('marble', '#f1eee6', w + 0.3, rh, 0, top + h + 0.85, d / 2 + 0.05, 0, 0.3);
+  k.gableWall('marble', '#f1eee6', w + 0.3, rh, 0, top + h + 0.85, -d / 2 - 0.05, 0, 0.3);
+  k.gable('marble', o.roofColor ?? '#d9d3c7', w + 0.3, d + 0.2, rh, 0, top + h + 0.85, 0, 0.25, 0.16);
+  // Tür in der Cella
+  const doorZ = cz + cellaD / 2 + 0.05;
+  const dw = 2.2;
+  const dh = 3.5;
+  k.box(o.doorBucket ?? 'bronze', o.doorColor ?? '#c7923e', dw, dh, 0.12, 0, top + dh / 2, doorZ);
+  k.box('marble', '#e6e1d6', dw + 0.5, 0.35, 0.3, 0, top + dh + 0.18, doorZ);
+  numbersMaterial();
+  numberPlate(k, { d: (doorZ + 0.05) * 2 }, o.nr, top + dh + 0.65);
+  return { top, doorZ, dw, dh, colXs, colZ };
+}
+
+// Blitz als flache Zickzack-Form
+function boltShape(s = 1) {
+  const sh = new THREE.Shape();
+  const pts = [[0.1, 1], [-0.25, 0.1], [0.02, 0.12], [-0.2, -1], [0.3, 0.05], [0.04, 0.04], [0.35, 1]];
+  sh.moveTo(pts[0][0] * s, pts[0][1] * s);
+  for (const [x, y] of pts.slice(1)) sh.lineTo(x * s, y * s);
+  sh.closePath();
+  return sh;
+}
+function bolt(k, bucket, color, s, x, y, z, rz = 0, depth = 0.04) {
+  const geo = new THREE.ExtrudeGeometry(boltShape(s), { depth, bevelEnabled: false });
+  k.add(geo, bucket, color, mat4(x, y, z, 0, 0, rz));
+}
+
+// Ranken (Tomaten, Wein, Rosen) an einer Wand hochwachsen lassen
+function vine(k, rand, from, height, { leaf = '#3f7a2e', stem = '#4d6b2a', fruit = null, fruitR = 0.05, cluster = 1, dir = v(0, 0, 1), spread = 0.35 } = {}) {
+  const pts = [];
+  const n = 7;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    pts.push(v(from.x + Math.sin(t * 6 + rand() * 3) * spread * (dir.z !== 0 ? 1 : 0), from.y + t * height, from.z + Math.sin(t * 6 + rand() * 3) * spread * (dir.x !== 0 ? 1 : 0)));
+  }
+  const curve = new THREE.CatmullRomCurve3(pts);
+  k.add(new THREE.TubeGeometry(curve, 16, 0.025, 4, false), 'plain', stem);
+  for (let i = 0; i < 14; i++) {
+    const p = curve.getPoint(rand());
+    k.sphere('leaf', i % 3 ? leaf : new THREE.Color(leaf).offsetHSL(0, 0, 0.08).getStyle(), 0.1, p.x + dir.x * 0.05 + (rand() - 0.5) * 0.15, p.y, p.z + dir.z * 0.05 + (rand() - 0.5) * 0.15, dir.x ? 0.35 : 1, 0.75, dir.z ? 0.35 : 1, 6);
+  }
+  if (fruit) {
+    for (let i = 0; i < 6; i++) {
+      const p = curve.getPoint(0.1 + rand() * 0.85);
+      for (let c = 0; c < cluster; c++) {
+        const cy = cluster > 1 ? -c * fruitR * 0.9 : 0;
+        const cx = cluster > 1 ? (rand() - 0.5) * fruitR * (cluster - c) * 0.5 : 0;
+        k.sphere('glossy', fruit, fruitR, p.x + dir.x * 0.12 + cx, p.y + cy - 0.05, p.z + dir.z * 0.12 + cx, 1, 1, 1, 7);
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+const DEFAULT = { w: 5.4, d: 7.2, h: 3, floor: 0.45 };
+
+const BUILDERS = {
+  // Zeus: wie ein weißes Marmor-Bankgebäude mit großen Säulen, polierte Bronzetüren mit Blitzen
+  1(k) {
+    const o = { w: 8, d: 9.5, h: 5.2, nr: 1 };
+    const t = temple(k, o);
+    // Blitze auf den Bronzetüren (leuchtend)
+    bolt(k, 'glow', '#fff4b0', 0.62, -0.5, t.top + t.dh / 2, t.doorZ + 0.07, 0.2);
+    bolt(k, 'glow', '#fff4b0', 0.62, 0.45, t.top + t.dh / 2, t.doorZ + 0.07, -0.15);
+    k.box('bronze', '#8a5c22', 0.04, t.dh, 0.14, 0, t.top + t.dh / 2, t.doorZ + 0.02);
+    // Bronzeblitz im Giebel
+    bolt(k, 'bronze', '#d9a441', 0.55, 0, t.top + o.h + 1.45, o.d / 2 + 0.22, Math.PI / 2 - 0.2);
+    // Adler-Akroterion oben auf dem Giebel
+    k.sphere('bronze', '#b8873a', 0.2, 0, t.top + o.h + 2.5, o.d / 2 + 0.1, 1, 0.8, 1.4);
+    for (const s of [-1, 1]) k.box('bronze', '#b8873a', 0.8, 0.05, 0.3, s * 0.45, t.top + o.h + 2.6, o.d / 2 + 0.1, 0, 0, s * 0.35);
+    return { w: o.w + 1.4, d: o.d + 1.4 };
+  },
+
+  // Hera: anmutiger, schlankere Säulen mit Granatäpfeln und Blumen, Pfauen in den Wänden
+  2(k, rand) {
+    const o = { w: 7.2, d: 8.8, h: 4.6, nr: 2, columns: 6, colR: 0.2, doorBucket: 'wood', doorColor: '#6b4a34', roofColor: '#e2dccf' };
+    const t = temple(k, o);
+    // Girlanden zwischen den Säulen
+    for (let i = 0; i < t.colXs.length - 1; i++) {
+      const a = t.colXs[i];
+      const b = t.colXs[i + 1];
+      const pts = [];
+      for (let s = 0; s <= 8; s++) {
+        const u = s / 8;
+        pts.push(v(a + (b - a) * u, t.top + o.h - 0.55 - Math.sin(u * Math.PI) * 0.55, t.colZ + 0.28));
+      }
+      const curve = new THREE.CatmullRomCurve3(pts);
+      k.add(new THREE.TubeGeometry(curve, 12, 0.06, 5, false), 'leaf', '#4f7f3a');
+      for (let s = 0; s < 7; s++) {
+        const p = curve.getPoint((s + 0.5) / 7);
+        if (s % 2) k.sphere('glossy', '#b3202e', 0.085, p.x, p.y - 0.06, p.z + 0.05, 1, 1, 1, 8); // Granatapfel
+        else k.sphere('plain', rand() < 0.5 ? '#f7c6d6' : '#fff3f6', 0.07, p.x, p.y, p.z + 0.06, 1, 0.6, 1, 7); // Blume
+      }
+    }
+    // Pfauen als Relief in den Wänden (seitlich und vorne neben der Tür)
+    const peacock = (x, y, z, ry, s = 1) =>
+      k.at(x, y, z, ry, () => {
+        for (let f = 0; f < 11; f++) {
+          const a = -Math.PI * 0.45 + (f / 10) * Math.PI * 0.9;
+          const len = 0.95 * s;
+          k.box('marble', '#6fa7a0', 0.07 * s, len, 0.04, Math.sin(a) * len * 0.5, Math.cos(a) * len * 0.5, 0, 0, 0, -a);
+          k.cyl('plain', '#2d5f8a', 0.075 * s, 0.075 * s, 0.05, Math.sin(a) * len * 0.95, Math.cos(a) * len * 0.95, 0.02, 10, Math.PI / 2);
+          k.cyl('plain', '#d9b54a', 0.035 * s, 0.035 * s, 0.06, Math.sin(a) * len * 0.95, Math.cos(a) * len * 0.95, 0.03, 8, Math.PI / 2);
+        }
+        k.sphere('plain', '#2a5fa8', 0.2 * s, 0, 0.05, 0.05, 0.75, 1, 0.4);
+        k.limb('plain', '#2a6fb0', v(0, 0.15 * s, 0.06), v(0.08 * s, 0.5 * s, 0.06), 0.05 * s);
+        k.sphere('plain', '#2a6fb0', 0.07 * s, 0.1 * s, 0.55 * s, 0.06, 1, 1, 0.6);
+        k.cone('bronze', '#d9a441', 0.02, 0.08, 0.14 * s, 0.63 * s, 0.06, 4);
+      });
+    const cellaFront = t.doorZ + 0.03;
+    peacock(-2.2, t.top + 2.2, cellaFront, 0, 1);
+    peacock(2.2, t.top + 2.2, cellaFront, 0, 1);
+    peacock(-(o.w - 2.2) / 2 - 0.03, t.top + 2.4, -1.2, -Math.PI / 2, 1.1);
+    peacock((o.w - 2.2) / 2 + 0.03, t.top + 2.4, -1.2, Math.PI / 2, 1.1);
+    return { w: o.w + 1.4, d: o.d + 1.4 };
+  },
+
+  // Poseidon: niedrig, lang und massiv, rauer grauer Stein mit Muscheln und Korallen
+  3(k, rand) {
+    const o = { w: 5.8, d: 10.5, h: 2.6, floor: 0.3, nr: 3, wall: 'coral', wallColor: '#b4bcc0', roof: true, roofH: 0.9, roofBucket: 'coral', roofColor: '#8f989c', gableBucket: 'coral', gableColor: '#b4bcc0', corners: false, overhang: 0.25, roofThick: 0.25, door: { color: '#2f6f6a', bucket: 'wood' }, win: { frame: '#9aa3a6', w: 0.6, h: 0.7 } };
+    shell(k, o);
+    // Muscheln in den Wänden
+    const shellCols = ['#f3e6da', '#f2c9c0', '#fbf6ee', '#e8d2b0'];
+    for (let i = 0; i < 70; i++) {
+      const face = ['front', 'left', 'right', 'back'][i % 4];
+      const len = face === 'front' || face === 'back' ? o.w : o.d;
+      const u = (rand() - 0.5) * (len - 0.4);
+      const y = o.floor + 0.2 + rand() * (o.h - 0.3);
+      if (face === 'front' && Math.abs(u) < 0.9 && y < o.floor + 2.4) continue;
+      onFace(k, o, face, u, y, () => {
+        if (i % 3) k.sphere('glossy', shellCols[i % 4], 0.07 + rand() * 0.05, 0, 0, 0, 1, 0.8, 0.35, 8);
+        else k.cone('glossy', shellCols[i % 4], 0.05, 0.16, 0, 0, 0.02, 7, 0, 0, rand() * 6);
+      });
+    }
+    // Korallen an den Ecken und neben der Tür
+    const coral = (x, z, s) => {
+      const cols = ['#e8674f', '#f08a6a', '#d94a5c', '#f2a18c'];
+      const grow = (p, dir, len, r, depth) => {
+        const q = p.clone().addScaledVector(dir, len);
+        k.limb('glossy', cols[depth % 4], p, q, r, 5);
+        k.sphere('glossy', cols[depth % 4], r * 1.05, q.x, q.y, q.z, 1, 1, 1, 5);
+        if (depth < 3) {
+          for (let b = 0; b < 2; b++) {
+            const nd = dir.clone().add(v((rand() - 0.5) * 1.2, 0.4, (rand() - 0.5) * 1.2)).normalize();
+            grow(q, nd, len * 0.72, r * 0.72, depth + 1);
+          }
+        }
+      };
+      grow(v(x, 0, z), v(0, 1, 0), 0.45 * s, 0.06 * s, 0);
+    };
+    coral(-o.w / 2 - 0.3, o.d / 2 + 0.2, 1.3);
+    coral(o.w / 2 + 0.3, o.d / 2 + 0.2, 1.2);
+    coral(-1.3, o.d / 2 + 0.35, 0.9);
+    coral(1.3, o.d / 2 + 0.35, 0.9);
+    coral(-o.w / 2 - 0.3, -o.d / 2 - 0.2, 1.1);
+    // Dreizack über der Tür
+    const ty = o.floor + 2.75;
+    const tz = o.d / 2 + 0.4;
+    const tri = '#3f9c8f';
+    k.limb('bronze', tri, v(0, ty - 0.25, tz), v(0, ty + 0.55, tz), 0.035);
+    k.box('bronze', tri, 0.06, 0.06, 0.4, 0, ty - 0.2, tz - 0.2);
+    k.box('bronze', tri, 0.5, 0.05, 0.05, 0, ty + 0.55, tz);
+    for (const x of [-0.24, 0, 0.24]) k.cone('bronze', tri, 0.045, 0.3, x, ty + 0.72, tz, 6);
+    return o;
+  },
+
+  // Demeter: Tomatenranken an den Wänden, Dach aus echtem Gras
+  4(k, rand) {
+    const o = { ...DEFAULT, nr: 4, wall: 'wood', wallColor: '#d8c39b', roofBucket: 'grassRoof', roofColor: '#b8e07a', roofThick: 0.35, door: { color: '#6a8f3a' }, win: { frame: '#f6f1e3', curtains: '#f2e2b8' } };
+    shell(k, o);
+    // Grasbüschel am Dachrand
+    for (let i = 0; i < 40; i++) {
+      const s = i % 2 ? 1 : -1;
+      const z = (rand() - 0.5) * (o.d + 0.6);
+      k.cone('leaf', '#8fbf4f', 0.08, 0.3, s * (o.w / 2 + 0.35), o.floor + o.h + 0.05, z, 5, 0, 0, s * 0.8);
+    }
+    // Tomatenranken
+    for (const face of ['front', 'left', 'right']) {
+      const len = face === 'front' ? o.w : o.d;
+      for (const u of [-len * 0.42, -len * 0.12, len * 0.12, len * 0.42]) {
+        if (face === 'front' && Math.abs(u) < 0.9) continue;
+        onFace(k, o, face, u, 0, () => vine(k, rand, v(0, 0.2, 0.08), o.floor + o.h - 0.2, { fruit: '#d8322a', fruitR: 0.055, spread: 0.18 }), 0);
+      }
+    }
+    // Weizengarbe über der Tür
+    const y = o.floor + 3.05;
+    const z = o.d / 2 + 0.12;
+    for (let i = 0; i < 9; i++) {
+      const a = (i - 4) * 0.07;
+      k.limb('plain', '#d9b45a', v(0, y - 0.35, z), v(Math.sin(a) * 0.6, y + 0.3, z), 0.012, 4);
+      k.sphere('plain', '#e3bf5c', 0.035, Math.sin(a) * 0.62, y + 0.34, z, 0.7, 2, 0.7, 5);
+    }
+    k.cyl('plain', '#8a5c2e', 0.07, 0.07, 0.06, 0, y - 0.1, z, 8, Math.PI / 2);
+    // Gemüsebeete vor der Hütte
+    for (const s of [-1, 1]) {
+      k.box('wood', '#6b4a2e', 1.4, 0.25, 0.7, s * 2, 0.12, o.d / 2 + 0.7);
+      for (let i = 0; i < 6; i++) k.sphere('leaf', '#5c9a34', 0.14, s * 2 + (i - 2.5) * 0.22, 0.32, o.d / 2 + 0.7, 1, 0.7, 1, 6);
+    }
+    return o;
+  },
+
+  // Ares: knallrot, wie mit Eimern und Fäusten draufgeklatscht, Stacheldraht auf dem Dach, Wildschweinkopf über der Tür
+  5(k, rand, extras) {
+    const o = { ...DEFAULT, nr: 5, wall: 'splash', wallColor: '#c9231c', gableBucket: 'splash', gableColor: '#b81f19', roofBucket: 'plain', roofColor: '#3a1a16', trim: '#2a1a16', door: { color: '#2b2b2b', bucket: 'metal', frame: '#2a1a16' }, win: { frame: '#2a1a16', glass: '#1d1d1d' } };
+    shell(k, o);
+    // Stacheldraht an beiden Traufen und am First
+    const rh = 1.7;
+    const lines = [
+      [-(o.w / 2 + 0.3), o.floor + o.h + 0.25],
+      [o.w / 2 + 0.3, o.floor + o.h + 0.25],
+      [0, o.floor + o.h + rh + 0.2],
+    ];
+    for (const [x, y] of lines) {
+      const pts = [];
+      const L = o.d + 0.9;
+      for (let i = 0; i <= 140; i++) {
+        const t = i / 140;
+        const a = t * 48 * Math.PI;
+        pts.push(v(x + Math.cos(a) * 0.12, y + Math.sin(a) * 0.12, -L / 2 + t * L));
+      }
+      k.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 400, 0.01, 3, false), 'metal', '#7d7f82');
+      for (let z = -L / 2; z < L / 2; z += 0.3) {
+        k.limb('metal', '#8a8c8f', v(x - 0.08, y, z), v(x + 0.08, y + 0.05, z), 0.006, 3);
+      }
+      for (let z = -L / 2 + 0.2; z < L / 2; z += 1.6) k.limb('metal', '#55575a', v(x, y - 0.25, z), v(x, y + 0.12, z), 0.02, 4);
+    }
+    // Wildschweinkopf (eigenes Objekt: seine Augen folgen dir)
+    const boar = new Kit();
+    const fur = '#4a3526';
+    boar.sphere('plain', fur, 0.32, 0, 0, 0, 1, 0.9, 1.1, 12);
+    boar.cyl('plain', fur, 0.17, 0.24, 0.4, 0, -0.07, 0.35, 10, Math.PI / 2);
+    boar.cyl('plain', '#6a4a3a', 0.16, 0.16, 0.05, 0, -0.07, 0.56, 10, Math.PI / 2);
+    for (const s of [-1, 1]) {
+      boar.sphere('plain', '#1a1010', 0.02, s * 0.06, -0.07, 0.585, 1, 1.4, 0.5, 5);
+      boar.cone('plain', '#efe6d2', 0.035, 0.22, s * 0.16, -0.05, 0.42, 6, -0.4, 0, s * 0.6);
+      boar.cone('plain', fur, 0.09, 0.2, s * 0.2, 0.28, -0.05, 6, -0.3, 0, -s * 0.5);
+      boar.sphere('glow', '#ff3b2a', 0.035, s * 0.14, 0.1, 0.24, 1, 1, 1, 6);
+    }
+    for (let i = 0; i < 9; i++) boar.cone('plain', '#2f2219', 0.03, 0.18, (i - 4) * 0.04, 0.3, -0.05 - Math.abs(i - 4) * 0.03, 4, -0.5);
+    boar.box('wood', '#5a3a26', 0.8, 0.6, 0.06, 0, 0, -0.33);
+    const head = boar.build();
+    extras.push({ type: 'boar', object: head, local: mat4(0, o.floor + 2.95, o.d / 2 + 0.38) });
+    return o;
+  },
+
+  // Athene: grau, mit einer geschnitzten Eule über der Tür
+  6(k) {
+    const o = { ...DEFAULT, nr: 6, wall: 'plaster', wallColor: '#b3b5b3', gableBucket: 'plaster', gableColor: '#a9aba9', roofColor: '#5f646a', door: { color: '#48505a' }, win: { frame: '#f0f0ec', curtains: '#f6f6f2' } };
+    shell(k, o);
+    const y = o.floor + 3.1;
+    const z = o.d / 2 + 0.2;
+    const st = '#d5d6d2';
+    k.sphere('plaster', st, 0.28, 0, y, z, 0.85, 1.1, 0.5, 12);
+    k.sphere('plaster', st, 0.2, 0, y + 0.38, z + 0.02, 1.1, 0.95, 0.6, 12);
+    for (const s of [-1, 1]) {
+      k.cone('plaster', st, 0.06, 0.16, s * 0.15, y + 0.58, z, 5, 0, 0, -s * 0.3);
+      k.cyl('plain', '#f4f2ea', 0.075, 0.075, 0.04, s * 0.085, y + 0.4, z + 0.12, 12, Math.PI / 2);
+      k.cyl('plain', '#d9a52c', 0.04, 0.04, 0.05, s * 0.085, y + 0.4, z + 0.13, 10, Math.PI / 2);
+      k.cyl('plain', '#1a1a1a', 0.02, 0.02, 0.06, s * 0.085, y + 0.4, z + 0.14, 8, Math.PI / 2);
+      k.sphere('plaster', '#c4c5c1', 0.16, s * 0.2, y - 0.02, z - 0.02, 0.45, 1.2, 0.5, 8);
+    }
+    k.cone('plaster', '#a58a4a', 0.03, 0.08, 0, y + 0.32, z + 0.14, 5, Math.PI / 2 + 0.3);
+    k.box('plaster', '#9fa19e', 0.8, 0.08, 0.2, 0, y - 0.33, z - 0.05);
+    // Olivenbäumchen in Kübeln
+    for (const s of [-1, 1]) {
+      k.cyl('stone', '#8d8a84', 0.28, 0.22, 0.45, s * 2.1, 0.22, o.d / 2 + 0.8, 10);
+      k.limb('bark', '#6d5a44', v(s * 2.1, 0.4, o.d / 2 + 0.8), v(s * 2.1, 1.3, o.d / 2 + 0.8), 0.04);
+      k.sphere('leaf', '#7d8f5c', 0.42, s * 2.1, 1.55, o.d / 2 + 0.8, 1, 0.8, 1, 8);
+    }
+    return o;
+  },
+
+  // Apollon: aus massivem Gold, das in der Sonne fast blendet
+  7(k) {
+    const o = { ...DEFAULT, nr: 7, wall: 'gold', wallColor: '#f0c24a', gableBucket: 'gold', gableColor: '#f3c850', roofBucket: 'gold', roofColor: '#e0a83a', trimBucket: 'gold', trim: '#ffd970', baseBucket: 'gold', baseColor: '#d9a53a', door: { color: '#c9922e', bucket: 'gold', frameBucket: 'gold', frame: '#ffd970' }, win: { frameBucket: 'gold', frame: '#ffd970', glass: '#5a4a2a' }, stepStyle: { bucket: 'gold', color: '#d9a53a' } };
+    shell(k, o);
+    // Sonne über der Tür
+    const y = o.floor + 3.2;
+    const z = o.d / 2 + 0.15;
+    k.cyl('glow', '#fff1b0', 0.26, 0.26, 0.06, 0, y, z, 20, Math.PI / 2);
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      k.cone('gold', '#ffd35c', 0.06, 0.28, Math.cos(a) * 0.42, y + Math.sin(a) * 0.42, z, 5, 0, 0, a - Math.PI / 2);
+    }
+    // Leier neben der Tür
+    for (const s of [-1, 1]) {
+      const x = s * 1.65;
+      k.add(new THREE.TorusGeometry(0.22, 0.025, 6, 16, Math.PI), 'gold', '#ffd35c', mat4(x, o.floor + 2.35, z, 0, 0, Math.PI));
+      for (const t of [-1, 1]) k.limb('gold', '#ffd35c', v(x + t * 0.22, o.floor + 2.35, z), v(x + t * 0.2, o.floor + 2.8, z), 0.022, 5);
+      k.box('gold', '#ffd35c', 0.5, 0.04, 0.04, x, o.floor + 2.8, z);
+      for (const t of [-0.08, 0, 0.08]) k.limb('plain', '#fff4d0', v(x + t, o.floor + 2.2, z + 0.02), v(x + t, o.floor + 2.8, z + 0.02), 0.004, 3);
+    }
+    return o;
+  },
+
+  // Artemis: silbern, schimmert wie Mondlicht
+  8(k, rand) {
+    const o = { ...DEFAULT, nr: 8, wall: 'silver', wallColor: '#dfe5ee', gableBucket: 'silver', gableColor: '#e6ebf2', roofBucket: 'silver', roofColor: '#b9c3d0', trimBucket: 'silver', trim: '#f4f7fb', door: { color: '#a9b4c2', bucket: 'silver', frameBucket: 'silver', frame: '#f4f7fb' }, win: { frameBucket: 'silver', frame: '#f4f7fb', glass: '#39445a' } };
+    shell(k, o);
+    // Mondsichel
+    const y = o.floor + 3.2;
+    const z = o.d / 2 + 0.15;
+    k.add(new THREE.TorusGeometry(0.32, 0.075, 8, 24, Math.PI * 1.25), 'glow', '#eef4ff', mat4(0, y, z, 0, 0, Math.PI * 0.12));
+    // Sterne
+    for (let i = 0; i < 7; i++) k.sphere('glow', '#f5f8ff', 0.035, (rand() - 0.5) * 1.8, y + (rand() - 0.3) * 0.7, z, 1, 1, 0.4, 5);
+    // Geweih über den Fenstern
+    for (const s of [-1, 1]) {
+      const x = s * o.w * 0.3;
+      for (const t of [-1, 1]) {
+        k.limb('silver', '#f0f3f8', v(x, o.floor + 2.25, z), v(x + t * 0.25, o.floor + 2.6, z), 0.02, 4);
+        k.limb('silver', '#f0f3f8', v(x + t * 0.14, o.floor + 2.45, z), v(x + t * 0.05, o.floor + 2.62, z), 0.015, 4);
+      }
+    }
+    return o;
+  },
+
+  // Hephaistos: Metallwände mit Nieten, Schornsteine wie eine kleine Fabrik
+  9(k, rand, extras) {
+    const o = { ...DEFAULT, nr: 9, wall: 'metal', wallColor: '#9aa0a6', gableBucket: 'metal', gableColor: '#8d9399', roofBucket: 'metal', roofColor: '#5d6268', trimBucket: 'metal', trim: '#6c7177', roofH: 1.2, door: { color: '#4a4e53', bucket: 'metal', frameBucket: 'metal', frame: '#3a3d41' }, win: { frameBucket: 'metal', frame: '#3a3d41', glass: '#3a2d24' } };
+    shell(k, o);
+    // Nieten
+    for (const face of ['front', 'left', 'right']) {
+      const len = face === 'front' ? o.w : o.d;
+      for (let u = -len / 2 + 0.2; u < len / 2; u += 0.45) for (const y of [o.floor + 0.15, o.floor + o.h - 0.15]) onFace(k, o, face, u, y, () => k.sphere('metal', '#bfc4c9', 0.035, 0, 0, 0, 1, 1, 0.6, 5));
+    }
+    // Schornsteine
+    for (const [x, z] of [[-1.3, -1.5], [1.2, 1.2]]) {
+      k.cyl('metal', '#4b4f54', 0.3, 0.36, 3.2, x, o.floor + o.h + 1.4, z, 12);
+      k.cyl('metal', '#35383c', 0.4, 0.4, 0.2, x, o.floor + o.h + 3.05, z, 12);
+      extras.push({ type: 'smoke', local: mat4(x, o.floor + o.h + 3.2, z) });
+    }
+    // Zahnräder an der Wand
+    const gear = (x, y, r, t) => {
+      k.add(new THREE.TorusGeometry(r, r * 0.22, 6, 18), 'bronze', '#b07a3a', mat4(x, y, o.d / 2 + 0.06));
+      for (let i = 0; i < t; i++) {
+        const a = (i / t) * Math.PI * 2;
+        k.box('bronze', '#b07a3a', r * 0.25, r * 0.3, 0.08, x + Math.cos(a) * r * 1.2, y + Math.sin(a) * r * 1.2, o.d / 2 + 0.06, 0, 0, a);
+      }
+      k.cyl('bronze', '#8a5c2a', r * 0.3, r * 0.3, 0.1, x, y, o.d / 2 + 0.08, 8, Math.PI / 2);
+    };
+    gear(-1.9, o.floor + 2.4, 0.3, 10);
+    gear(-1.45, o.floor + 2.85, 0.2, 8);
+    // Hammer und Amboss über der Tür
+    const y = o.floor + 3.05;
+    const z = o.d / 2 + 0.15;
+    k.box('metal', '#2e3135', 0.55, 0.14, 0.14, 0, y, z);
+    k.box('metal', '#2e3135', 0.3, 0.1, 0.12, 0, y - 0.12, z);
+    k.box('metal', '#2e3135', 0.42, 0.08, 0.14, 0, y - 0.2, z);
+    k.limb('wood', '#6a4a2e', v(-0.35, y + 0.15, z + 0.05), v(0.05, y + 0.55, z + 0.05), 0.025);
+    k.box('metal', '#55595e', 0.2, 0.12, 0.12, -0.36, y + 0.13, z + 0.05, 0, 0, 0.8);
+    // Amboss vor der Hütte
+    k.box('metal', '#2e3135', 0.7, 0.25, 0.35, 2.1, 0.55, o.d / 2 + 1.2);
+    k.box('metal', '#2e3135', 0.35, 0.4, 0.3, 2.1, 0.22, o.d / 2 + 1.2);
+    return o;
+  },
+
+  // Aphrodite: rosa, Blumenkästen, Spitzenvorhänge
+  10(k, rand) {
+    const o = { ...DEFAULT, nr: 10, wall: 'wood', wallColor: '#f4b2c8', gableColor: '#f7bfd2', roofColor: '#c98aa0', trim: '#fff7fa', door: { color: '#e48aa9' }, win: { frame: '#ffffff', curtains: '#fde3ee', box: (w) => flowerBox(k, rand, w) } };
+    shell(k, o);
+    // Rosen an der Tür
+    for (const s of [-1, 1]) onFace(k, o, 'front', s * 0.95, 0, () => vine(k, rand, v(0, 0.2, 0.08), 2.6, { fruit: s > 0 ? '#e0344f' : '#f38bb0', fruitR: 0.06, spread: 0.12, leaf: '#3f7a3e' }), 0);
+    // Taube über der Tür
+    const y = o.floor + 3.1;
+    const z = o.d / 2 + 0.2;
+    k.sphere('plain', '#ffffff', 0.18, 0, y, z, 1.5, 0.85, 0.8);
+    k.sphere('plain', '#ffffff', 0.1, 0.25, y + 0.1, z, 1, 1, 1);
+    k.cone('plain', '#f0a0a0', 0.025, 0.08, 0.36, y + 0.09, z, 5, 0, 0, -Math.PI / 2);
+    for (const s of [-1, 1]) k.box('plain', '#fbfbfb', 0.4, 0.03, 0.2, -0.05, y + 0.18, z + s * 0.12, 0, s * 0.2, 0.5);
+    k.cone('plain', '#f4f4f4', 0.1, 0.28, -0.35, y - 0.02, z, 6, 0, 0, Math.PI / 2);
+    // Herz
+    const heart = new THREE.Shape();
+    heart.moveTo(0, -0.18);
+    heart.bezierCurveTo(-0.3, 0.02, -0.18, 0.25, 0, 0.1);
+    heart.bezierCurveTo(0.18, 0.25, 0.3, 0.02, 0, -0.18);
+    k.add(new THREE.ExtrudeGeometry(heart, { depth: 0.05, bevelEnabled: false }), 'glossy', '#e2446b', mat4(0, y + 0.55, z - 0.05));
+    return o;
+  },
+
+  // Hermes: ganz normale alte Sommerlager-Hütte, abgewetzte Schwelle, abblätternde braune Farbe, Äskulapstab über der Tür, völlig überfüllt
+  11(k, rand) {
+    const o = { ...DEFAULT, w: 6, d: 8, nr: 11, wall: 'worn', wallColor: '#8b6547', gableBucket: 'worn', gableColor: '#7e5b40', roofColor: '#6a625a', trim: '#b8a58a', door: { color: '#6b4a32', bucket: 'worn' }, stepStyle: { bucket: 'wood', color: '#7a6048' }, win: { frame: '#b8a58a', curtains: '#c9b48c' } };
+    shell(k, o);
+    // abgewetzte, durchgetretene Schwelle
+    k.box('wood', '#9a8568', 1.3, 0.05, 0.3, 0, o.floor + 0.01, o.d / 2 + 0.12);
+    // Hermesstab mit zwei Schlangen und Flügeln
+    const y = o.floor + 2.8;
+    const z = o.d / 2 + 0.16;
+    k.limb('gold', '#d8a94a', v(0, y, z), v(0, y + 0.95, z), 0.025);
+    k.sphere('gold', '#d8a94a', 0.055, 0, y + 0.98, z);
+    for (const s of [-1, 1]) {
+      const pts = [];
+      for (let i = 0; i <= 20; i++) {
+        const t = i / 20;
+        const a = t * Math.PI * 3 + (s > 0 ? 0 : Math.PI);
+        pts.push(v(Math.sin(a) * 0.1 * (1 - t * 0.3), y + 0.05 + t * 0.7, z + Math.cos(a) * 0.05));
+      }
+      k.add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 30, 0.018, 4, false), 'glossy', '#3f8a52');
+      const hp = pts[pts.length - 1];
+      k.sphere('glossy', '#3f8a52', 0.035, hp.x + s * 0.03, hp.y + 0.02, hp.z, 1.3, 0.8, 1);
+      for (let f = 0; f < 4; f++) k.box('plain', '#fafafa', 0.26 - f * 0.04, 0.035, 0.02, s * (0.15 + f * 0.02), y + 0.88 - f * 0.045, z, 0, 0, s * (0.35 + f * 0.05));
+    }
+    // überfüllt: Schlafsäcke, Taschen und Kisten vor der Tür
+    const cols = ['#2f5f9a', '#b73a2e', '#3f7a3e', '#d8a13a', '#6b4a8a'];
+    for (let i = 0; i < 5; i++) {
+      const x = -2.6 + i * 0.5 + (i > 2 ? 3.2 : 0);
+      k.add(new THREE.CapsuleGeometry(0.18, 0.5, 4, 8), 'plain', cols[i], mat4(x > 0 ? x - 0.5 : x, 0.2, o.d / 2 + 0.5 + (i % 2) * 0.3, Math.PI / 2, 0.2 * i, 0));
+    }
+    k.box('wood', '#8a6a44', 0.6, 0.45, 0.45, -2.3, 0.23, o.d / 2 + 1.3, 0.3);
+    k.box('wood', '#7a5a3a', 0.5, 0.35, 0.4, -2.2, 0.62, o.d / 2 + 1.3, -0.2);
+    k.add(new THREE.CapsuleGeometry(0.22, 0.45, 4, 8), 'plain', '#4a5a3a', mat4(2.4, 0.25, o.d / 2 + 1.2, 0, 0, Math.PI / 2));
+    // Wäscheleine
+    k.limb('wood', '#6a5040', v(-o.w / 2 - 0.6, 0, o.d / 2 - 1), v(-o.w / 2 - 0.6, 2, o.d / 2 - 1), 0.04);
+    k.limb('wood', '#6a5040', v(-o.w / 2 - 0.6, 0, -o.d / 2 + 1), v(-o.w / 2 - 0.6, 2, -o.d / 2 + 1), 0.04);
+    k.limb('plain', '#e8e2d2', v(-o.w / 2 - 0.6, 1.95, o.d / 2 - 1), v(-o.w / 2 - 0.6, 1.95, -o.d / 2 + 1), 0.008, 3);
+    for (let i = 0; i < 5; i++) k.box('plain', i % 2 ? '#e8742a' : '#f0ece2', 0.04, 0.55, 0.5, -o.w / 2 - 0.6, 1.66, o.d / 2 - 1.8 - i * 0.9);
+    return o;
+  },
+
+  // Dionysos: Weinranken und Trauben, Pergola vor der Tür
+  12(k, rand) {
+    const o = { ...DEFAULT, nr: 12, wall: 'wood', wallColor: '#b88d6c', gableColor: '#a97f60', roofColor: '#6d4a64', trim: '#6b2e6b', door: { color: '#5a2a55', frame: '#6b2e6b' }, win: { frame: '#6b2e6b' } };
+    shell(k, o);
+    for (const face of ['left', 'right', 'back']) {
+      for (const u of [-2.4, -0.8, 0.8, 2.4]) onFace(k, o, face, u, 0, () => vine(k, rand, v(0, 0.2, 0.08), o.floor + o.h, { fruit: '#5b2a6e', fruitR: 0.045, cluster: 4, leaf: '#4f7f34', spread: 0.25 }), 0);
+    }
+    // Pergola mit Weinreben vor der Tür
+    const z0 = o.d / 2 + 0.3;
+    for (const [x, z] of [[-1.3, z0 + 1.8], [1.3, z0 + 1.8], [-1.3, z0], [1.3, z0]]) k.box('wood', '#7a5236', 0.14, 2.5, 0.14, x, 1.25, z);
+    for (const x of [-1.3, 1.3]) k.box('wood', '#6e4a30', 0.14, 0.14, 2.3, x, 2.55, z0 + 0.9);
+    for (let i = 0; i < 5; i++) k.box('wood', '#6e4a30', 3, 0.1, 0.1, 0, 2.66, z0 + i * 0.45);
+    for (let i = 0; i < 40; i++) k.sphere('leaf', i % 2 ? '#4f7f34' : '#5f9140', 0.22, (rand() - 0.5) * 3, 2.78, z0 + rand() * 1.8, 1, 0.4, 1, 6);
+    for (let c = 0; c < 8; c++) {
+      const cx = (rand() - 0.5) * 2.4;
+      const cz = z0 + rand() * 1.8;
+      for (let i = 0; i < 10; i++) {
+        const row = Math.floor(i / 3);
+        k.sphere('glossy', '#5b2a6e', 0.05, cx + ((i % 3) - 1) * 0.07 * (1 - row * 0.2), 2.55 - row * 0.08, cz + (rand() - 0.5) * 0.05, 1, 1, 1, 6);
+      }
+    }
+    // Weinkelch über der Tür
+    const y = o.floor + 3.05;
+    const z = o.d / 2 + 0.15;
+    k.add(new THREE.LatheGeometry([v(0, 0, 0), v(0.18, 0, 0), v(0.05, 0.05, 0), v(0.04, 0.25, 0), v(0.22, 0.35, 0), v(0.25, 0.6, 0)], 14), 'gold', '#d4a043', mat4(0, y - 0.3, z));
+    for (const s of [-1, 1]) k.add(new THREE.TorusGeometry(0.1, 0.02, 5, 10, Math.PI), 'gold', '#d4a043', mat4(s * 0.25, y + 0.15, z, 0, 0, s > 0 ? -Math.PI / 2 : Math.PI / 2));
+    return o;
+  },
+};
+
+function flowerBox(k, rand, w) {
+  k.box('wood', '#fdf7fa', w + 0.2, 0.22, 0.28, 0, -0.68, 0.14);
+  const cols = ['#e2446b', '#f7a1c0', '#ffffff', '#f5d04a', '#b86ad8'];
+  for (let i = 0; i < 10; i++) k.sphere('plain', cols[i % 5], 0.07, -w / 2 + (i + 0.5) * (w / 10), -0.5 + rand() * 0.06, 0.16 + (rand() - 0.5) * 0.1, 1, 0.8, 1, 6);
+  for (let i = 0; i < 8; i++) k.sphere('leaf', '#4f8f3e', 0.08, -w / 2 + (i + 0.5) * (w / 8), -0.55, 0.14, 1, 0.6, 1, 5);
+}
+
+// ---------------------------------------------------------------------------
+export function buildCabins(colliders) {
+  const k = new Kit();
+  const extras = [];
+  for (const c of LAYOUT.cabins) {
+    const rand = rng('cabin' + c.nr);
+    const y = heightAt(c.x, c.z) - 0.05;
+    const local = [];
+    let size;
+    k.at(c.x, y, c.z, c.facing, () => {
+      size = BUILDERS[c.nr](k, rand, local);
+      for (const e of local) extras.push({ ...e, matrix: k.M.clone().multiply(e.local), cabin: c.nr });
+    });
+    colliders.addBox(c.x, c.z, size.w / 2 + 0.1, size.d / 2 + 0.1, c.facing);
+  }
+  const group = k.build();
+  return { group, extras };
+}

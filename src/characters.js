@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { heightAt, LAYOUT, cabin, inFrontOf } from './terrain.js';
+import { groundAt, LAYOUT, cabin, inFrontOf } from './terrain.js';
+import { bigHouseSpot } from './buildings.js';
+
+// Abstand vor der Hüttentür, an dem die Figuren stehen
+const FRONT = 5.3;
 
 // Figuren aus Camp Half-Blood, selbst gebaut aus Grundformen.
 // Aussehen nach den Beschreibungen im Buch „Diebe im Olymp“.
@@ -568,7 +572,7 @@ const FIGURES = [
     id: 'percy',
     name: 'Percy Jackson',
     height: 1.52,
-    place: () => ({ ...inFrontOf(cabin(3), 3.3), faceTo: LAYOUT.campfire }),
+    place: () => ({ ...inFrontOf(cabin(3), FRONT), faceTo: LAYOUT.campfire }),
     make: () =>
       buildHuman(
         campShirt({
@@ -589,7 +593,7 @@ const FIGURES = [
     id: 'annabeth',
     name: 'Annabeth Chase',
     height: 1.52,
-    place: () => ({ ...inFrontOf(cabin(6), 3.3), faceTo: LAYOUT.campfire }),
+    place: () => ({ ...inFrontOf(cabin(6), FRONT), faceTo: LAYOUT.campfire }),
     make: () =>
       buildHuman(
         campShirt({
@@ -619,7 +623,7 @@ const FIGURES = [
     id: 'grover',
     name: 'Grover Underwood',
     height: 1.5,
-    place: () => ({ x: 3, z: -19.5, faceTo: LAYOUT.start }),
+    place: () => ({ x: 2.6, z: -24, faceTo: LAYOUT.start }),
     make: () =>
       buildHuman({
         name: 'Grover',
@@ -654,7 +658,7 @@ const FIGURES = [
     id: 'luke',
     name: 'Luke Castellan',
     height: 1.83,
-    place: () => ({ ...inFrontOf(cabin(11), 3.2), faceTo: LAYOUT.start }),
+    place: () => ({ ...inFrontOf(cabin(11), FRONT), faceTo: LAYOUT.start }),
     make: () =>
       buildHuman(
         campShirt({
@@ -689,21 +693,21 @@ const FIGURES = [
     id: 'travis',
     name: 'Travis Stoll',
     height: 1.72,
-    place: () => ({ ...inFrontOf(cabin(11), 3.4), dz: 1.4, faceTo: LAYOUT.start }),
+    place: () => ({ ...inFrontOf(cabin(11), FRONT + 0.3), dz: 1.5, faceTo: LAYOUT.start }),
     make: () => buildHuman(campShirt(stoll('Travis', 'down', 'pocket'))),
   },
   {
     id: 'connor',
     name: 'Connor Stoll',
     height: 1.66,
-    place: () => ({ ...inFrontOf(cabin(11), 3.4), dz: -1.4, faceTo: LAYOUT.start }),
+    place: () => ({ ...inFrontOf(cabin(11), FRONT + 0.3), dz: -1.5, faceTo: LAYOUT.start }),
     make: () => buildHuman(campShirt(stoll('Connor', 'pocket', 'down'))),
   },
   {
     id: 'clarisse',
     name: 'Clarisse La Rue',
     height: 1.72,
-    place: () => ({ ...inFrontOf(cabin(5), 3.4), faceTo: LAYOUT.campfire }),
+    place: () => ({ ...inFrontOf(cabin(5), FRONT), faceTo: LAYOUT.campfire }),
     make: () =>
       buildHuman({
         name: 'Clarisse',
@@ -727,7 +731,7 @@ const FIGURES = [
     id: 'argus',
     name: 'Argus',
     height: 1.95,
-    place: () => ({ x: LAYOUT.bigHouse.x + 5.5, z: LAYOUT.bigHouse.z - 5, faceTo: LAYOUT.campfire }),
+    place: () => ({ ...bigHouseSpot(-2.6, 9.6, 0), y: undefined }), // vor der Verandatreppe
     make: () =>
       buildHuman({
         name: 'Argus',
@@ -766,7 +770,7 @@ const FIGURES = [
     id: 'mrd',
     name: 'Mr. D (Dionysos)',
     height: 1.62,
-    place: () => ({ x: LAYOUT.bigHouse.x + 5.3, z: LAYOUT.bigHouse.z - 0.9, yaw: 0 }),
+    place: () => bigHouseSpot(4.3, 5.8, -Math.PI / 2), // auf der Veranda am Kartentisch
     make: () =>
       buildHuman({
         name: 'MrD',
@@ -811,7 +815,7 @@ const FIGURES = [
     id: 'chiron',
     name: 'Chiron',
     height: 1.0, // der Zentaur wird unten direkt in Metern gebaut
-    place: () => ({ x: LAYOUT.bigHouse.x + 5.3, z: LAYOUT.bigHouse.z + 1.6, yaw: Math.PI }),
+    place: () => bigHouseSpot(1.6, 5.8, Math.PI / 2), // auf der Veranda, Mr. D gegenüber
     make: buildChiron,
   },
 ];
@@ -973,7 +977,7 @@ export function addCharacters(scene, colliders, obstacles) {
     const root = new THREE.Group();
     root.add(built.group);
     if (f.height !== 1) built.group.scale.setScalar(f.height / 1.7);
-    root.position.set(x, heightAt(x, z), z);
+    root.position.set(x, p.y ?? groundAt(x, z), z);
     root.rotation.y = p.faceTo ? Math.atan2(p.faceTo.x - x, p.faceTo.z - z) : p.yaw;
     root.userData.figureId = f.id;
     scene.add(root);
@@ -991,12 +995,15 @@ export function addCharacters(scene, colliders, obstacles) {
   }
 
   // Kartentisch zwischen Mr. D und Chiron
-  const mrd = list.find((c) => c.id === 'mrd').root.position;
+  // Tisch steht vor Mr. D, in seiner Blickrichtung
+  const mrd = list.find((c) => c.id === 'mrd').root;
+  const yaw = mrd.rotation.y;
   const table = buildCardTable();
-  table.position.set(mrd.x, heightAt(mrd.x, mrd.z + 0.75), mrd.z + 0.72);
+  table.position.set(mrd.position.x + Math.sin(yaw) * 0.72, mrd.position.y, mrd.position.z + Math.cos(yaw) * 0.72);
+  table.rotation.y = yaw;
   scene.add(table);
   obstacles.push(table);
-  colliders.addBox(table.position.x, table.position.z - 0.3, 0.55, 0.85);
+  colliders.addBox(mrd.position.x + Math.sin(yaw) * 0.42, mrd.position.z + Math.cos(yaw) * 0.42, 0.55, 0.85, yaw);
 
   return new CharacterSet(list);
 }

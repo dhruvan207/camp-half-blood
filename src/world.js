@@ -1,17 +1,22 @@
 import * as THREE from 'three';
 import { Sky } from 'three/addons/objects/Sky.js';
-import { createTerrain, heightAt, LAYOUT } from './terrain.js';
+import { createTerrain, LAYOUT, PLATFORMS } from './terrain.js';
 import { Colliders } from './colliders.js';
 import { addCharacters } from './characters.js';
+import { buildCamp } from './buildings.js';
+import { buildCabins } from './cabins.js';
+import { buildNature } from './nature.js';
+import { buildWater } from './water.js';
+import { Fire, Smoke } from './fire.js';
 
-// Sonne: später Nachmittag, tief im Südwesten
+// Sonne: später Nachmittag, tief im Südwesten (über dem Meer)
 const SUN_ELEVATION = 20; // Grad über dem Horizont
-const SUN_AZIMUTH = 235; // Grad
+const SUN_AZIMUTH = 215; // Grad
 const FOG_COLOR = new THREE.Color('#e3d6b8');
 
 export function buildWorld(renderer) {
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(FOG_COLOR, 70, 230);
+  scene.fog = new THREE.Fog(FOG_COLOR, 80, 260);
 
   const sunDir = new THREE.Vector3().setFromSphericalCoords(
     1,
@@ -30,7 +35,7 @@ export function buildWorld(renderer) {
   u.sunPosition.value.copy(sunDir);
   scene.add(sky);
 
-  // Umgebungslicht aus dem Himmel berechnen
+  // Umgebungslicht aus dem Himmel berechnen (Spiegelungen auf Gold, Silber, Wasser)
   const pmrem = new THREE.PMREMGenerator(renderer);
   const envScene = new THREE.Scene();
   const envSky = new Sky();
@@ -38,73 +43,93 @@ export function buildWorld(renderer) {
   envSky.material = sky.material;
   envScene.add(envSky);
   scene.environment = pmrem.fromScene(envScene, 0, 0.1, 1000).texture;
-  scene.environmentIntensity = 0.6;
+  scene.environmentIntensity = 0.85;
   pmrem.dispose();
 
-  // --- Sonne mit Schatten ---
+  // --- Sonne mit Schatten über dem ganzen Camp ---
+  const center = new THREE.Vector3(-3, 0, -1);
   const sun = new THREE.DirectionalLight('#ffe0b5', 3.2);
-  sun.position.copy(sunDir).multiplyScalar(70);
+  sun.position.copy(sunDir).multiplyScalar(90).add(center);
+  sun.target.position.copy(center);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   const s = sun.shadow.camera;
-  s.left = -42;
-  s.right = 42;
-  s.top = 42;
-  s.bottom = -42;
+  s.left = -56;
+  s.right = 56;
+  s.top = 56;
+  s.bottom = -56;
   s.near = 1;
-  s.far = 180;
+  s.far = 220;
   sun.shadow.bias = -0.0004;
-  sun.shadow.normalBias = 0.03;
+  sun.shadow.normalBias = 0.04;
   sun.shadow.radius = 2;
   scene.add(sun, sun.target);
 
-  const hemi = new THREE.HemisphereLight('#c4d8ff', '#6a5a3a', 0.3);
-  scene.add(hemi);
+  scene.add(new THREE.HemisphereLight('#c4d8ff', '#7a6a4a', 0.55));
 
-  // --- Boden ---
-  const ground = createTerrain();
-  scene.add(ground);
+  // --- Boden, Wasser ---
+  const terrain = createTerrain();
+  scene.add(terrain.group);
+  const water = buildWater();
+  scene.add(water.group);
 
-  const colliders = new Colliders(LAYOUT.walkLimit);
-  const obstacles = [];
+  // --- Kollisionen ---
+  const onPlatform = (x, z) => PLATFORMS.some((p) => x >= p.minX && x <= p.maxX && z >= p.minZ && z <= p.maxZ);
+  const colliders = new Colliders(LAYOUT.bounds, onPlatform);
+  const L = LAYOUT.lake;
+  colliders.addWater(L.x, L.z, L.rx * 0.98, L.rz * 0.96);
+  colliders.addPolyline(LAYOUT.creek, 1.3);
 
-  // --- Kiefer auf dem Half-Blood Hill (Startpunkt) ---
-  const pine = createPine();
-  const pineX = LAYOUT.hill.x + 2.5;
-  const pineZ = LAYOUT.hill.z - 1.5;
-  pine.position.set(pineX, heightAt(pineX, pineZ) - 0.1, pineZ);
-  scene.add(pine);
-  obstacles.push(pine);
-  colliders.addCircle(pineX, pineZ, 0.7);
+  // --- Gebäude und Hütten ---
+  const camp = buildCamp(colliders);
+  scene.add(camp.group);
+  const cabins = buildCabins(colliders);
+  scene.add(cabins.group);
+  const obstacles = [camp.group, cabins.group];
+
+  // --- Natur (nach den Gebäuden, damit keine Bäume in Häusern wachsen) ---
+  const nature = buildNature(colliders);
+  scene.add(nature);
+
+  // --- Feuer, Rauch, Wildschweinkopf ---
+  const animated = [];
+  for (const f of camp.fires) {
+    const fire = new Fire(f);
+    scene.add(fire.object);
+    animated.push(fire);
+  }
+  let boar = null;
+  for (const e of cabins.extras) {
+    const pos = new THREE.Vector3().setFromMatrixPosition(e.matrix);
+    if (e.type === 'smoke') {
+      const smoke = new Smoke(pos);
+      scene.add(smoke.object);
+      animated.push(smoke);
+    } else if (e.type === 'boar') {
+      // Halter mit Ausrichtung der Hütte, darin dreht sich der Kopf
+      const holder = new THREE.Group();
+      holder.applyMatrix4(e.matrix);
+      holder.add(e.object);
+      scene.add(holder);
+      boar = e.object;
+    }
+  }
 
   // --- Figuren ---
   const characters = addCharacters(scene, colliders, obstacles);
 
-  return { scene, sun, ground, colliders, obstacles, characters };
-}
-
-function createPine() {
-  const g = new THREE.Group();
-  const bark = new THREE.MeshStandardMaterial({ color: '#5b3f2a', roughness: 1 });
-  const needles = new THREE.MeshStandardMaterial({ color: '#2f4a2a', roughness: 0.9 });
-
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.45, 7, 8), bark);
-  trunk.position.y = 3.5;
-  g.add(trunk);
-
-  const layers = [
-    [3.2, 3.4, 3.2],
-    [2.6, 3.0, 5.0],
-    [1.9, 2.6, 6.6],
-    [1.1, 2.0, 8.0],
-  ];
-  for (const [r, h, y] of layers) {
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(r, h, 9), needles);
-    cone.position.y = y;
-    g.add(cone);
+  const tmp = new THREE.Vector3();
+  function update(t, dt, camera) {
+    water.update(t);
+    for (const a of animated) a.update(t, dt);
+    characters.update(t, dt, camera);
+    if (boar) {
+      // die Augen des Wildschweins folgen dir
+      const local = boar.parent.worldToLocal(tmp.copy(camera.position));
+      const target = local.z > 0 && local.length() < 25 ? THREE.MathUtils.clamp(Math.atan2(local.x, local.z), -0.7, 0.7) : 0;
+      boar.rotation.y += (target - boar.rotation.y) * Math.min(1, dt * 2);
+    }
   }
-  g.traverse((o) => {
-    if (o.isMesh) o.castShadow = o.receiveShadow = true;
-  });
-  return g;
+
+  return { scene, sun, ground: terrain.group, colliders, obstacles, characters, update };
 }

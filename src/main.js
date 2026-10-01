@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { buildWorld } from './world.js';
 import { WalkControls } from './controls.js';
-import { heightAt, LAYOUT } from './terrain.js';
+import { groundAt, LAYOUT } from './terrain.js';
 
 function hasWebGL() {
   try {
@@ -71,11 +71,12 @@ async function start() {
     ground: world.ground,
     obstacles: world.obstacles,
     colliders: world.colliders,
-    heightAt,
+    heightAt: groundAt,
   });
   scene.add(controls.marker);
   // Start auf dem Half-Blood Hill, Blick hinunter aufs Camp (nach Süden)
-  controls.setView(LAYOUT.hill.x, LAYOUT.hill.z + 4, Math.PI, -0.12);
+  const look = LAYOUT.campfire;
+  controls.setView(LAYOUT.start.x, LAYOUT.start.z, Math.atan2(LAYOUT.start.x - look.x, LAYOUT.start.z - look.z), -0.17);
 
   // Shader vorab übersetzen, damit es beim ersten Bild nicht ruckelt
   await renderer.compileAsync(scene, camera);
@@ -122,7 +123,7 @@ async function start() {
     const dt = Math.min(clock.getDelta(), 0.1);
     time += dt;
     controls.update(dt);
-    world.characters.update(time, dt, camera);
+    world.update(time, dt, camera);
     renderer.render(scene, camera);
     adaptQuality(dt);
   });
@@ -147,6 +148,12 @@ async function start() {
       controls.enabled = true;
       loadingEl.hidden = true;
       controls.setView(x, z, Math.atan2(x - r.position.x, z - r.position.z), pitch);
+    };
+    // Test-Hilfe: goto(x, z, blickX, blickZ) stellt die Kamera an eine Stelle und schaut zu einem Punkt
+    window.goto = (x, z, tx, tz, pitch = -0.1) => {
+      controls.enabled = true;
+      loadingEl.hidden = true;
+      controls.setView(x, z, Math.atan2(x - tx, z - tz), pitch);
     };
   }
 }
