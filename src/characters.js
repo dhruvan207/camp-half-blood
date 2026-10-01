@@ -572,7 +572,7 @@ const FIGURES = [
     id: 'percy',
     name: 'Percy Jackson',
     height: 1.52,
-    place: () => ({ ...inFrontOf(cabin(3), FRONT(3)), faceTo: LAYOUT.campfire }),
+    place: () => ({ ...inFrontOf(cabin(3), FRONT(3)), dz: -1.8, faceTo: LAYOUT.campfire }), // neben der offenen Tür
     make: () =>
       buildHuman(
         campShirt({

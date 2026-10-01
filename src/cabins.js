@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Kit, mat4, materials, canvasTexture, rng } from './kit.js';
-import { LAYOUT, heightAt, inFrontOf } from './terrain.js';
+import { LAYOUT, heightAt, inFrontOf, addPlatform } from './terrain.js';
 
 // Die zwölf Hütten. Jede Hütte wird in eigenen Koordinaten gebaut:
 // Tür vorne (+z), Mitte bei (0,0,0). Danach wird sie an ihren Platz gedreht.
@@ -318,6 +318,253 @@ function vine(k, rand, from, height, { leaf = '#3f7a2e', stem = '#4d6b2a', fruit
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Hütte 3 – Poseidon (Percys Hütte), begehbar.
+// Nach dem Buch: niedrig, lang und massiv; raue graue Steinwände mit Muschelstücken und Korallen,
+// als wären die Steinplatten direkt vom Meeresboden gehauen. Innen: sechs leere Betten mit
+// aufgeschlagener Seidenbettwäsche, die Wände schimmern wie Perlmutt.
+
+const STONE_GRAYS = ['#e9eff1', '#d5dde0', '#f3f5f3', '#c2ccd0', '#e3e7e4', '#b8c3c7', '#d3dedb', '#cad6d4'];
+
+// Bricht einen Bereich [a, b] an den Kanten der Öffnungen und in zufällige Stücke
+function courseBreaks(height, openings, rand) {
+  const forced = new Set([0, height]);
+  for (const o of openings) {
+    if (o.y0 > 0.01) forced.add(o.y0);
+    if (o.y1 < height - 0.01) forced.add(o.y1);
+  }
+  const fixed = [...forced].sort((a, b) => a - b);
+  const out = [0];
+  for (let i = 0; i < fixed.length - 1; i++) {
+    let y = fixed[i];
+    const end = fixed[i + 1];
+    while (end - y > 0.75) {
+      y += 0.38 + rand() * 0.22;
+      if (end - y < 0.3) break;
+      out.push(y);
+    }
+    out.push(end);
+  }
+  return [...new Set(out)].sort((a, b) => a - b);
+}
+
+// Steinplatten-Wand in eigenen Koordinaten: u entlang der Wand, y nach oben, außen = +z
+function slabWall(k, rand, len, height, thick, openings) {
+  const ys = courseBreaks(height, openings, rand);
+  for (let c = 0; c < ys.length - 1; c++) {
+    const y0 = ys[c];
+    const y1 = ys[c + 1];
+    const ym = (y0 + y1) / 2;
+    // Stücke dieser Reihe, Öffnungen ausgespart
+    let segs = [[-len / 2, len / 2]];
+    for (const o of openings) {
+      if (ym < o.y0 || ym > o.y1) continue;
+      segs = segs.flatMap(([a, b]) => {
+        if (o.u1 <= a || o.u0 >= b) return [[a, b]];
+        const r = [];
+        if (o.u0 > a) r.push([a, o.u0]);
+        if (o.u1 < b) r.push([o.u1, b]);
+        return r;
+      });
+    }
+    const gap = 0.035; // Fuge zwischen den Platten
+    const gy0 = y0 > 0.001 ? gap / 2 : 0;
+    const gy1 = y1 < height - 0.001 ? gap / 2 : 0;
+    for (const [a, b] of segs) {
+      let u = a + (c % 2 ? -rand() * 0.3 : 0);
+      u = Math.max(a, u);
+      while (u < b - 0.01) {
+        const l = Math.min(b - u, 0.5 + rand() * 0.7);
+        const rest = b - (u + l);
+        const L = rest < 0.25 ? b - u : l; // keine winzigen Reststücke
+        const extra = rand() * 0.07;
+        // Fugen nur zwischen zwei Platten, nicht an Ecken und Öffnungen
+        const g0 = u > a + 0.001 ? gap / 2 : 0;
+        const g1 = u + L < b - 0.001 ? gap / 2 : 0;
+        const geo = k.box('seastone', STONE_GRAYS[Math.floor(rand() * STONE_GRAYS.length)], L - g0 - g1, y1 - y0 - gy0 - gy1, thick + extra, u + g0 + (L - g0 - g1) / 2, y0 + gy0 + (y1 - y0 - gy0 - gy1) / 2, extra / 2);
+        // jede Platte bekommt einen eigenen Ausschnitt der Steintextur
+        const uv = geo.attributes.uv;
+        const ou = rand() * 5;
+        const ov = rand() * 5;
+        for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) + ou, uv.getY(i) + ov);
+        u += L;
+      }
+    }
+  }
+}
+
+// Innenverkleidung mit Löchern für Tür und Fenster
+function lining(k, bucket, color, len, height, openings, z, depth = 0.03) {
+  const us = new Set([-len / 2, len / 2]);
+  for (const o of openings) {
+    us.add(o.u0);
+    us.add(o.u1);
+  }
+  const cols = [...us].sort((a, b) => a - b);
+  for (let i = 0; i < cols.length - 1; i++) {
+    const a = cols[i];
+    const b = cols[i + 1];
+    const m = (a + b) / 2;
+    const o = openings.find((op) => m > op.u0 && m < op.u1);
+    const parts = o ? [[0, o.y0], [o.y1, height]] : [[0, height]];
+    for (const [y0, y1] of parts) if (y1 - y0 > 0.01) k.box(bucket, color, b - a, y1 - y0, depth, m, (y0 + y1) / 2, z);
+  }
+}
+
+function scallop(k, color, x, y, z, s, rot) {
+  const geo = new THREE.CircleGeometry(0.09 * s, 9, Math.PI * 0.1, Math.PI * 0.8);
+  const p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const r = Math.hypot(p.getX(i), p.getY(i)) / (0.09 * s);
+    const ang = Math.atan2(p.getY(i), p.getX(i));
+    p.setZ(i, (1 - r * r) * 0.025 * s + Math.abs(Math.sin(ang * 9)) * 0.006 * s); // Rippen
+  }
+  geo.computeVertexNormals();
+  k.add(geo, 'glossy', color, mat4(x, y, z, 0, 0, rot));
+}
+
+function poseidonCabin(k, rand) {
+  const w = 5.0;
+  const d = 10.5;
+  const F = 0.3; // Fußboden
+  const H = 2.5; // niedrig
+  const T = 0.45; // dicke, massive Steinwände
+  const iw = w - 2 * T;
+  const id = d - 2 * T;
+  const openings = {
+    front: [{ u0: -0.6, u1: 0.6, y0: 0, y1: 2.1 }],
+    back: [{ u0: -0.45, u1: 0.45, y0: 1.1, y1: 1.75 }],
+    // Fenster über den Betten
+    left: [-3.6, -1.2, 1.2].map((u) => ({ u0: u - 0.4, u1: u + 0.4, y0: 1.15, y1: 1.75 })),
+    right: [3.6, 1.2, -1.2].map((u) => ({ u0: u - 0.4, u1: u + 0.4, y0: 1.15, y1: 1.75 })),
+  };
+  const walls = {
+    front: { x: 0, z: d / 2 - T / 2, ry: 0, len: w },
+    back: { x: 0, z: -d / 2 + T / 2, ry: Math.PI, len: w },
+    left: { x: -w / 2 + T / 2, z: 0, ry: -Math.PI / 2, len: id },
+    right: { x: w / 2 - T / 2, z: 0, ry: Math.PI / 2, len: id },
+  };
+
+  // Sockel und Fußboden
+  k.box('seastone', '#c2cacd', w + 0.2, F, d + 0.2, 0, F / 2, 0);
+  k.noAO(() => k.box('wood', '#f2e6cf', iw, 0.04, id, 0, F + 0.02, 0));
+  // eine breite Steinstufe
+  k.box('seastone', '#d6dde0', 1.8, F * 0.5, 0.45, 0, F * 0.25, d / 2 + 0.25);
+
+  const shellCols = ['#f4e9dc', '#f0cfc4', '#fbf6ee', '#e9d6b4', '#f6dfe6'];
+  const coralCols = ['#e86e55', '#f08f72', '#d9506a', '#f4a58f'];
+  for (const [name, wl] of Object.entries(walls)) {
+    const ops = openings[name];
+    k.at(wl.x, F, wl.z, wl.ry, () => {
+      slabWall(k, rand, wl.len, H, T, ops);
+      // dunkler Mörtel hinter den Platten (sichtbar in den Fugen)
+      lining(k, 'plain', '#3b4245', wl.len, H, ops, 0, T - 0.04);
+      // Innen: schimmernd wie Perlmutt
+      k.noAO(() => lining(k, 'abalone', '#ffffff', wl.len - 0.02, H - 0.02, ops, -T / 2 - 0.016));
+      // Fenster: Glas mittig in der dicken Wand, schmaler Holzrahmen
+      for (const o of ops) {
+        if (o.y0 === 0) continue;
+        const cu = (o.u0 + o.u1) / 2;
+        const cy = (o.y0 + o.y1) / 2;
+        const ow = o.u1 - o.u0;
+        const oh = o.y1 - o.y0;
+        k.box('glass', '#2c3a44', ow, oh, 0.03, cu, cy, 0);
+        k.box('wood', '#6f7f7a', ow, 0.05, 0.08, cu, cy, 0.01);
+        k.box('wood', '#6f7f7a', 0.05, oh, 0.08, cu, cy, 0.01);
+        k.box('seastone', '#c7cdcc', ow + 0.12, 0.07, T + 0.12, cu, o.y0 - 0.035, 0.03); // Fensterbank aus Stein
+      }
+      // Muschelstücke und Korallen, in die Steine eingelassen
+      const outZ = T / 2 + 0.04;
+      const free = (u, y) => !ops.some((o) => u > o.u0 - 0.2 && u < o.u1 + 0.2 && y > o.y0 - 0.2 && y < o.y1 + 0.2);
+      const n = Math.round(wl.len * 9);
+      for (let i = 0; i < n; i++) {
+        const u = (rand() - 0.5) * (wl.len - 0.3);
+        const y = 0.12 + rand() * (H - 0.25);
+        if (!free(u, y)) continue;
+        const r = rand();
+        if (r < 0.45) scallop(k, shellCols[i % 5], u, y, outZ, 1.0 + rand() * 0.9, rand() * Math.PI * 2);
+        else if (r < 0.6) k.cone('glossy', shellCols[(i + 2) % 5], 0.035, 0.13, u, y, outZ, 7, 0, 0, rand() * 6); // Schneckenhaus
+        else if (r < 0.72) k.sphere('glossy', '#1f2a3a', 0.05, u, y, outZ - 0.01, 1.7, 0.75, 0.4, 7); // Miesmuschel
+        else if (r < 0.86) {
+          // Korallenstück, flach in der Wand
+          const col = coralCols[i % 4];
+          const base = v(u, y, outZ);
+          for (let b = 0; b < 3; b++) {
+            const sp = (b - 1) * 0.6 + (rand() - 0.5) * 0.3; // Äste fächern nach oben auf
+            const len = 0.09 + rand() * 0.06;
+            const tip = v(u + Math.sin(sp) * len, y + Math.cos(sp) * len, outZ);
+            k.limb('glossy', col, base, tip, 0.012, 4);
+            k.sphere('glossy', col, 0.016, tip.x, tip.y, tip.z, 1, 1, 1, 5);
+          }
+        } else {
+          for (let b = 0; b < 4; b++) k.cone('plain', '#e9e6dc', 0.02, 0.03, u + (b % 2) * 0.05, y + Math.floor(b / 2) * 0.05, outZ - 0.01, 6, Math.PI / 2, 0, 0); // Seepocken
+        }
+      }
+    });
+  }
+
+  // Tür: schwere Holztür, offen nach innen geklappt
+  k.box('wood', '#3f6b67', 0.07, 2.05, 1.12, -0.6 - 0.04, F + 1.03, d / 2 - T - 0.6);
+  k.sphere('bronze', '#c9953f', 0.04, -0.52, F + 1.0, d / 2 - T - 1.05);
+  // Messingnummer über der Tür
+  numberPlate(k, { d: d + 0.02 }, 3, F + 2.28);
+  // Dreizack als Steinrelief links neben der Tür (Infopunkt laut Projektauftrag)
+  const tz = d / 2 + 0.07;
+  const tx = -1.55;
+  const rel = '#d5dbd9';
+  k.box('seastone', rel, 0.07, 1.25, 0.06, tx, F + 1.05, tz);
+  k.box('seastone', rel, 0.5, 0.07, 0.06, tx, F + 1.68, tz);
+  for (const s of [-1, 0, 1]) {
+    k.box('seastone', rel, 0.06, 0.32, 0.06, tx + s * 0.22, F + 1.86, tz);
+    k.cone('seastone', rel, 0.055, 0.14, tx + s * 0.22, F + 2.08, tz, 4);
+  }
+
+  // Niedriges Dach aus Steinplatten, innen Holzbalken
+  const roofH = 0.55;
+  k.gableWall('seastone', '#dfe5e7', w, roofH, 0, F + H, d / 2 - T / 2, 0, T);
+  k.gableWall('seastone', '#dfe5e7', w, roofH, 0, F + H, -d / 2 + T / 2, 0, T);
+  k.gable('seastone', '#aeb7ba', w, d, roofH, 0, F + H, 0, 0.3, 0.24);
+  k.box('wood', '#6e6152', iw, 0.06, id, 0, F + H - 0.03, 0);
+  for (let z = -id / 2 + 0.6; z < id / 2; z += 1.2) k.box('wood', '#5a4c3e', iw, 0.14, 0.14, 0, F + H - 0.1, z);
+
+  // Sechs leere Betten mit aufgeschlagener Seidenbettwäsche
+  const beds = [];
+  k.noAO(() => {
+  for (const sx of [-1, 1]) {
+    for (const bz of [-3.6, -1.2, 1.2]) {
+      const bx = sx * (iw / 2 - 0.5);
+      beds.push([bx, bz]);
+      k.box('wood', '#5d4b3a', 0.95, 0.3, 2.05, bx, F + 0.3, bz); // Bettgestell
+      for (const [lx, lz] of [[-0.42, -0.97], [0.42, -0.97], [-0.42, 0.97], [0.42, 0.97]]) k.box('wood', '#4c3c2e', 0.07, 0.3, 0.07, bx + lx, F + 0.15, bz + lz);
+      k.box('wood', '#5d4b3a', 0.95, 0.6, 0.07, bx, F + 0.6, bz - 1.0); // Kopfteil
+      k.box('plain', '#f3f1ea', 0.85, 0.14, 1.95, bx, F + 0.52, bz); // Matratze
+      k.box('silk', '#3f88a8', 0.88, 0.05, 1.45, bx, F + 0.615, bz + 0.25); // Seidendecke
+      k.box('silk', '#cfe9f2', 0.88, 0.035, 0.3, bx, F + 0.655, bz - 0.36); // umgeschlagene Kante
+      k.box('silk', '#f7fbfc', 0.6, 0.12, 0.32, bx, F + 0.65, bz - 0.78); // Kissen
+    }
+  }
+  });
+  // ein paar Muscheln auf den Fensterbänken innen
+  for (let i = 0; i < 6; i++) scallop(k, shellCols[i % 5], (i % 2 ? 1 : -1) * (iw / 2 - 0.05), F + 1.12, -3.6 + Math.floor(i / 2) * 2.4, 0.8, Math.PI / 2);
+
+  // Kollisionen (in Hüttenkoordinaten): Wände mit Türöffnung, Betten
+  const local = [
+    { x: 0, z: -d / 2 + T / 2, hw: w / 2, hd: T / 2 },
+    { x: -w / 2 + T / 2, z: 0, hw: T / 2, hd: d / 2 },
+    { x: w / 2 - T / 2, z: 0, hw: T / 2, hd: d / 2 },
+    { x: -(w / 2 + 0.6) / 2, z: d / 2 - T / 2, hw: (w / 2 - 0.6) / 2, hd: T / 2 },
+    { x: (w / 2 + 0.6) / 2, z: d / 2 - T / 2, hw: (w / 2 - 0.6) / 2, hd: T / 2 },
+    ...beds.map(([x, z]) => ({ x, z, hw: 0.48, hd: 1.05 })),
+  ];
+  return {
+    w,
+    d,
+    frontExtra: 0.45,
+    localColliders: local,
+    platforms: [{ x0: -iw / 2, x1: iw / 2, z0: -id / 2, z1: d / 2 + 0.1, y: F + 0.04 }],
+  };
+}
+
 const DEFAULT = { w: 4.8, d: 7.2, h: 3, floor: 0.45, overhang: 0.35 };
 
 const BUILDERS = {
@@ -385,53 +632,9 @@ const BUILDERS = {
     return { w: o.w + 1.4, d: o.d + 1.4, frontExtra: 0 };
   },
 
-  // Poseidon: niedrig, lang und massiv, rauer grauer Stein mit Muscheln und Korallen
+  // Poseidon (Percys Hütte): eigener, begehbarer Bau, siehe poseidonCabin()
   3(k, rand) {
-    const o = { w: 5.0, d: 10.5, h: 2.6, floor: 0.3, nr: 3, wall: 'coral', wallColor: '#b4bcc0', roof: true, roofH: 0.9, roofBucket: 'coral', roofColor: '#8f989c', gableBucket: 'coral', gableColor: '#b4bcc0', corners: false, overhang: 0.25, roofThick: 0.25, door: { color: '#2f6f6a', bucket: 'wood' }, win: { frame: '#9aa3a6', w: 0.6, h: 0.7 }, stepStyle: { bucket: 'coral', color: '#a3abae' }, fascia: false, gutters: false, piers: false };
-    shell(k, o);
-    // Muscheln in den Wänden
-    const shellCols = ['#f3e6da', '#f2c9c0', '#fbf6ee', '#e8d2b0'];
-    for (let i = 0; i < 70; i++) {
-      const face = ['front', 'left', 'right', 'back'][i % 4];
-      const len = face === 'front' || face === 'back' ? o.w : o.d;
-      const u = (rand() - 0.5) * (len - 0.4);
-      const y = o.floor + 0.2 + rand() * (o.h - 0.3);
-      if (face === 'front' && Math.abs(u) < 0.9 && y < o.floor + 2.4) continue;
-      onFace(k, o, face, u, y, () => {
-        if (i % 3) k.sphere('glossy', shellCols[i % 4], 0.07 + rand() * 0.05, 0, 0, 0, 1, 0.8, 0.35, 8);
-        else k.cone('glossy', shellCols[i % 4], 0.05, 0.16, 0, 0, 0.02, 7, 0, 0, rand() * 6);
-      });
-    }
-    // Korallen an den Ecken und neben der Tür
-    const coral = (x, z, s) => {
-      const cols = ['#e8674f', '#f08a6a', '#d94a5c', '#f2a18c'];
-      const grow = (p, dir, len, r, depth) => {
-        const q = p.clone().addScaledVector(dir, len);
-        k.limb('glossy', cols[depth % 4], p, q, r, 5);
-        k.sphere('glossy', cols[depth % 4], r * 1.05, q.x, q.y, q.z, 1, 1, 1, 5);
-        if (depth < 3) {
-          for (let b = 0; b < 2; b++) {
-            const nd = dir.clone().add(v((rand() - 0.5) * 1.2, 0.4, (rand() - 0.5) * 1.2)).normalize();
-            grow(q, nd, len * 0.72, r * 0.72, depth + 1);
-          }
-        }
-      };
-      grow(v(x, 0, z), v(0, 1, 0), 0.45 * s, 0.06 * s, 0);
-    };
-    coral(-o.w / 2 - 0.3, o.d / 2 + 0.2, 1.3);
-    coral(o.w / 2 + 0.3, o.d / 2 + 0.2, 1.2);
-    coral(-1.3, o.d / 2 + 0.35, 0.9);
-    coral(1.3, o.d / 2 + 0.35, 0.9);
-    coral(-o.w / 2 - 0.3, -o.d / 2 - 0.2, 1.1);
-    // Dreizack über der Tür
-    const ty = o.floor + 2.75;
-    const tz = o.d / 2 + 0.4;
-    const tri = '#3f9c8f';
-    k.limb('bronze', tri, v(0, ty - 0.25, tz), v(0, ty + 0.55, tz), 0.035);
-    k.box('bronze', tri, 0.06, 0.06, 0.4, 0, ty - 0.2, tz - 0.2);
-    k.box('bronze', tri, 0.5, 0.05, 0.05, 0, ty + 0.55, tz);
-    for (const x of [-0.24, 0, 0.24]) k.cone('bronze', tri, 0.045, 0.3, x, ty + 0.72, tz, 6);
-    return o;
+    return poseidonCabin(k, rand);
   },
 
   // Demeter: Tomatenranken an den Wänden, Dach aus echtem Gras
@@ -751,8 +954,24 @@ export function buildCabins(colliders) {
     // Größe merken: so weit steht die Hütte samt Veranda/Stufen vor
     const extra = size.frontExtra ?? 0;
     c.size = { w: size.w, d: size.d, front: size.d / 2 + extra };
-    const mid = inFrontOf(c, extra / 2);
-    colliders.addBox(mid.x, mid.z, size.w / 2 + 0.1, size.d / 2 + extra / 2 + 0.1, c.facing);
+    if (size.localColliders) {
+      // begehbare Hütte: einzelne Wände statt eines großen Blocks
+      const cs = Math.cos(c.facing);
+      const sn = Math.sin(c.facing);
+      const W = (lx, lz) => ({ x: c.x + lx * cs + lz * sn, z: c.z - lx * sn + lz * cs });
+      for (const b of size.localColliders) {
+        const p = W(b.x, b.z);
+        colliders.addBox(p.x, p.z, b.hw, b.hd, c.facing);
+      }
+      for (const pl of size.platforms ?? []) {
+        const a = W(pl.x0, pl.z0);
+        const e = W(pl.x1, pl.z1);
+        addPlatform(Math.min(a.x, e.x), Math.max(a.x, e.x), Math.min(a.z, e.z), Math.max(a.z, e.z), y + 0.05 + pl.y);
+      }
+    } else {
+      const mid = inFrontOf(c, extra / 2);
+      colliders.addBox(mid.x, mid.z, size.w / 2 + 0.1, size.d / 2 + extra / 2 + 0.1, c.facing);
+    }
   }
   const group = k.build();
   return { group, extras };

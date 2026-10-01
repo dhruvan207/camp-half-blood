@@ -73,6 +73,31 @@ function marbleTexture() {
   });
 }
 
+// Perlmutt: weiche, schillernde Wellen in Rosa, Grün, Blau und Silber (Innenwände von Percys Hütte)
+function abaloneTexture() {
+  const t = canvasTexture(512, 512, (g, w, h) => {
+    const img = g.createImageData(w, h);
+    const c = new THREE.Color();
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const u = (x / w) * Math.PI * 2;
+        const v = (y / h) * Math.PI * 2;
+        const wave = Math.sin(u * 2 + Math.sin(v * 2) * 1.5) + Math.sin(v * 3 + Math.sin(u) * 1.2) * 0.5;
+        // fast weiß-silbern, nur ein Hauch von Rosa, Grün und Blau
+        c.setHSL((0.5 + wave * 0.18 + 1) % 1, 0.22, 0.86 + Math.sin(wave * 1.5) * 0.05);
+        const i = (y * w + x) * 4;
+        img.data[i] = c.r * 255;
+        img.data[i + 1] = c.g * 255;
+        img.data[i + 2] = c.b * 255;
+        img.data[i + 3] = 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
+  });
+  t.repeat.set(1 / 1.6, 1 / 1.6);
+  return t;
+}
+
 // Farbe wie mit Eimern und Fäusten draufgeklatscht (Ares)
 function splashPaintTexture() {
   return canvasTexture(512, 512, (g, w, h) => {
@@ -160,6 +185,8 @@ export function materials() {
     roof: std({ ...tex('roof', 2.5, true), roughness: 0.9 }),
     stone: std({ ...tex('rock', 2.5, true), roughness: 0.95 }),
     coral: std({ ...tex('coral_stone', 1.8, true), roughness: 0.95 }),
+    // rauer grauer Fels, wie vom Meeresboden (Percys Hütte)
+    seastone: std({ ...tex('seastone', 1.6, true), roughness: 0.95 }),
     tiles: std({ ...tex('marble', 3), roughness: 0.6 }),
     plaster: std({ ...tex('plaster', 3), roughness: 0.9 }),
     metal: std({ ...tex('metal', 2), metalness: 0.35, roughness: 0.55 }),
@@ -178,6 +205,20 @@ export function materials() {
     // Blitze auf Zeus' Bronzetüren: flackern je nach Blickwinkel wie ein Hologramm (wird in world.js bewegt)
     hologram: new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false }),
     leaf: std({ roughness: 0.9, side: THREE.DoubleSide }),
+    // Percys Hütte innen: Wände schimmern wie Perlmutt (das Innere einer Muschel)
+    abalone: new THREE.MeshPhysicalMaterial({
+      map: abaloneTexture(),
+      vertexColors: true,
+      roughness: 0.22,
+      metalness: 0.15,
+      iridescence: 1,
+      iridescenceIOR: 1.5,
+      iridescenceThicknessRange: [180, 650],
+      emissive: new THREE.Color('#3d5a62'),
+      emissiveIntensity: 0.3,
+    }),
+    // Bettwäsche aus Seide (leichter Glanz)
+    silk: new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.38, sheen: 1, sheenColor: new THREE.Color('#d8f2ff'), sheenRoughness: 0.35 }),
   };
   return MATS;
 }
@@ -208,6 +249,14 @@ export class Kit {
 
   get M() {
     return this.stack[this.stack.length - 1];
+  }
+
+  // Innenräume: hier keine Abdunklung zum Boden (sonst wird es drinnen zu dunkel)
+  noAO(fn) {
+    const a = this.ao;
+    this.ao = null;
+    fn();
+    this.ao = a;
   }
 
   // Alles innerhalb von fn wird an (x,y,z) mit Drehung ry platziert

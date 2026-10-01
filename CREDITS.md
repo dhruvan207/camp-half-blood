@@ -21,6 +21,7 @@ Es werden keine Bilder aus den Filmen, kein Buchcover und keine fremden Fan-Art-
 | `bark_diff.jpg` | [Bark Brown 02](https://polyhaven.com/a/bark_brown_02) | Rob Tuytel |
 | `metal_diff.jpg` | [Metal Plate](https://polyhaven.com/a/metal_plate) | Rob Tuytel |
 | `rock_diff.jpg`, `rock_nor.jpg` | [Rock Wall 10](https://polyhaven.com/a/rock_wall_10) | Amal Kumar |
+| `seastone_diff.jpg`, `seastone_nor.jpg` | [Rock Boulder Dry](https://polyhaven.com/a/rock_boulder_dry) | Dimitrios Savva, Rico Cilliers |
 
 ## Bibliotheken
 

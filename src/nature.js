@@ -95,6 +95,7 @@ function inRect(x, z, x0, x1, z0, z1) {
 
 function keepClear(x, z, colliders, r = 1.2) {
   const L = LAYOUT;
+  if (colliders.onPlatform?.(x, z)) return true;
   if (z > 33.5) return true; // Strand
   for (const p of PATHS) if (distToPolyline(x, z, p) < r + 1.4) return true;
   if (distToPolyline(x, z, L.creek) < r + 2.2) return true;
@@ -390,6 +391,7 @@ function buildGrass(colliders) {
 
 function keepGrassClear(x, z, colliders) {
   const L = LAYOUT;
+  if (colliders.onPlatform?.(x, z)) return true; // kein Gras in Hütten, auf Veranden und Stegen
   for (const p of PATHS) if (distToPolyline(x, z, p) < 1.9) return true;
   if (Math.hypot(x - L.campfire.x, z - L.campfire.z) < 5.4) return true;
   const e = ((x - L.lake.x) / (L.lake.rx + 1.5)) ** 2 + ((z - L.lake.z) / (L.lake.rz + 1.5)) ** 2;
