@@ -172,10 +172,16 @@ export function buildNature(colliders) {
   for (const k of kinds) if (k.list.length) group.add(instance(k.kit, k.list, k.cols));
 
   // --- Thalias Kiefer auf dem Half-Blood Hill ---
-  group.add(buildThaliaPine(colliders));
+  const pine = buildThaliaPine(colliders);
+  pine.userData.placeId = 'kiefer';
+  group.add(pine);
 
   // --- Erdbeerfelder ---
-  group.add(buildStrawberries());
+  const berries = buildStrawberries();
+  berries.userData.placeId = 'erdbeerfelder';
+  group.add(berries);
+  // antippbar (öffnen eine Infobox)
+  group.userData.tapTargets = [pine, berries];
 
   // --- Felsen ---
   group.add(buildRocks(colliders));

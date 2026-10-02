@@ -16,6 +16,8 @@ export class WalkControls {
     this.obstacles = obstacles; // Meshes, die einen Tipp "abfangen" (z. B. Hütten)
     this.interactables = []; // Meshes der Infopunkte
     this.onInteract = null;
+    this.tapTargets = []; // zusätzliche antippbare Dinge (Namensschilder, See, Kiefer …)
+    this.onTapHit = null; // (hit) => true, wenn der Tipp verarbeitet wurde
     this.colliders = colliders;
     this.heightAt = heightAt;
     this.enabled = false;
@@ -46,7 +48,11 @@ export class WalkControls {
     // iOS: Pinch-Zoom der Seite verhindern
     document.addEventListener('gesturestart', (e) => e.preventDefault());
     document.addEventListener('dblclick', (e) => e.preventDefault());
-    window.addEventListener('keydown', (e) => this.keys.add(e.key.toLowerCase()));
+    window.addEventListener('keydown', (e) => {
+      // beim Tippen in ein Textfeld nicht laufen
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      this.keys.add(e.key.toLowerCase());
+    });
     window.addEventListener('keyup', (e) => this.keys.delete(e.key.toLowerCase()));
     window.addEventListener('blur', () => this.keys.clear());
   }
@@ -132,9 +138,13 @@ export class WalkControls {
       }
     }
 
-    // 2) Boden (oder ein Gebäude davor)
-    const hit = this.raycaster.intersectObjects([this.ground, ...this.obstacles], true)[0];
+    // 2) Boden, Gebäude, Figuren und Namensschilder
+    const hits = this.raycaster.intersectObjects([this.ground, ...this.obstacles, ...this.tapTargets], true);
+    // unsichtbare (ausgeblendete) Namensschilder ignorieren
+    const hit = hits.find((h) => !(h.object.isSprite && (!h.object.visible || h.object.material.opacity < 0.3)));
     if (!hit) return;
+    // Figur, Haus oder Schild angetippt? Dann öffnet sich die Infobox statt hinzulaufen.
+    if (this.onTapHit && this.onTapHit(hit)) return;
     this.walkTo(hit.point.x, hit.point.z);
     this.showMarker(hit.point.x, hit.point.z);
   }

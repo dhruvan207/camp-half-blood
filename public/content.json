@@ -1,0 +1,53 @@
+{
+  "anleitung": "Hier stehen alle Texte der Infoboxen. Am einfachsten bearbeitest du sie direkt auf der Seite (Knopf 'Text bearbeiten'). Wenn du diese Datei von Hand änderst: nur den Text zwischen den Anführungszeichen hinter \"titel\", \"text\" und \"bild\" ändern. Bilder kommen in den Ordner public/bilder, bei \"bild\" nur den Dateinamen eintragen, z. B. \"riptide.jpg\".",
+  "figuren": [
+    { "id": "percy", "titel": "Percy Jackson", "text": "Hier deinen Text zu Percy Jackson schreiben.", "bild": "" },
+    { "id": "annabeth", "titel": "Annabeth Chase", "text": "Hier deinen Text zu Annabeth Chase schreiben.", "bild": "" },
+    { "id": "grover", "titel": "Grover Underwood", "text": "Hier deinen Text zu Grover Underwood schreiben.", "bild": "" },
+    { "id": "luke", "titel": "Luke Castellan", "text": "Hier deinen Text zu Luke Castellan schreiben.", "bild": "" },
+    { "id": "travis", "titel": "Travis Stoll", "text": "Hier deinen Text zu Travis Stoll schreiben.", "bild": "" },
+    { "id": "connor", "titel": "Connor Stoll", "text": "Hier deinen Text zu Connor Stoll schreiben.", "bild": "" },
+    { "id": "clarisse", "titel": "Clarisse La Rue", "text": "Hier deinen Text zu Clarisse La Rue schreiben.", "bild": "" },
+    { "id": "argus", "titel": "Argus", "text": "Hier deinen Text zu Argus schreiben.", "bild": "" },
+    { "id": "mrd", "titel": "Mr. D (Dionysos)", "text": "Hier deinen Text zu Mr. D schreiben.", "bild": "" },
+    { "id": "chiron", "titel": "Chiron", "text": "Hier deinen Text zu Chiron schreiben.", "bild": "" }
+  ],
+  "huetten": [
+    { "id": "huette-1", "titel": "Hütte 1 – Zeus", "text": "Hier deinen Text zur Hütte von Zeus schreiben.", "bild": "" },
+    { "id": "huette-2", "titel": "Hütte 2 – Hera", "text": "Hier deinen Text zur Hütte von Hera schreiben.", "bild": "" },
+    { "id": "huette-3", "titel": "Hütte 3 – Poseidon", "text": "Hier deinen Text zur Hütte von Poseidon schreiben.", "bild": "" },
+    { "id": "huette-4", "titel": "Hütte 4 – Demeter", "text": "Hier deinen Text zur Hütte von Demeter schreiben.", "bild": "" },
+    { "id": "huette-5", "titel": "Hütte 5 – Ares", "text": "Hier deinen Text zur Hütte von Ares schreiben.", "bild": "" },
+    { "id": "huette-6", "titel": "Hütte 6 – Athene", "text": "Hier deinen Text zur Hütte von Athene schreiben.", "bild": "" },
+    { "id": "huette-7", "titel": "Hütte 7 – Apollon", "text": "Hier deinen Text zur Hütte von Apollon schreiben.", "bild": "" },
+    { "id": "huette-8", "titel": "Hütte 8 – Artemis", "text": "Hier deinen Text zur Hütte von Artemis schreiben.", "bild": "" },
+    { "id": "huette-9", "titel": "Hütte 9 – Hephaistos", "text": "Hier deinen Text zur Hütte von Hephaistos schreiben.", "bild": "" },
+    { "id": "huette-10", "titel": "Hütte 10 – Aphrodite", "text": "Hier deinen Text zur Hütte von Aphrodite schreiben.", "bild": "" },
+    { "id": "huette-11", "titel": "Hütte 11 – Hermes", "text": "Hier deinen Text zur Hütte von Hermes schreiben.", "bild": "" },
+    { "id": "huette-12", "titel": "Hütte 12 – Dionysos", "text": "Hier deinen Text zur Hütte von Dionysos schreiben.", "bild": "" }
+  ],
+  "orte": [
+    { "id": "big-house", "titel": "Das Big House", "text": "Hier deinen Text zum Big House schreiben.", "bild": "" },
+    { "id": "speisepavillon", "titel": "Der Speisepavillon", "text": "Hier deinen Text zum Speisepavillon schreiben.", "bild": "" },
+    { "id": "arena", "titel": "Die Arena", "text": "Hier deinen Text zur Arena schreiben.", "bild": "" },
+    { "id": "amphitheater", "titel": "Das Amphitheater", "text": "Hier deinen Text zum Amphitheater schreiben.", "bild": "" },
+    { "id": "staelle", "titel": "Die Ställe", "text": "Hier deinen Text zu den Ställen schreiben.", "bild": "" },
+    { "id": "bogenschiessen", "titel": "Der Bogenschießplatz", "text": "Hier deinen Text zum Bogenschießplatz schreiben.", "bild": "" },
+    { "id": "kanusee", "titel": "Der Kanusee", "text": "Hier deinen Text zum Kanusee schreiben.", "bild": "" },
+    { "id": "erdbeerfelder", "titel": "Die Erdbeerfelder", "text": "Hier deinen Text zu den Erdbeerfeldern schreiben.", "bild": "" },
+    { "id": "kiefer", "titel": "Die Kiefer auf dem Half-Blood Hill", "text": "Hier deinen Text zur Kiefer auf dem Half-Blood Hill schreiben.", "bild": "" }
+  ],
+  "infopunkte": [
+    { "id": "riptide", "titel": "Riptide", "text": "Hier deinen Text zu Riptide schreiben.", "bild": "" },
+    { "id": "minotaurus-horn", "titel": "Das Horn des Minotaurus", "text": "Hier deinen Text zum Horn des Minotaurus schreiben.", "bild": "" },
+    { "id": "chirons-brief", "titel": "Chirons Brief", "text": "Hier deinen Text zu Chirons Brief schreiben.", "bild": "" },
+    { "id": "herrscherblitz", "titel": "Zeus' Herrscherblitz", "text": "Hier deinen Text zum Herrscherblitz schreiben.", "bild": "" },
+    { "id": "flugschuhe", "titel": "Hermes' Flugschuhe", "text": "Hier deinen Text zu den Flugschuhen schreiben.", "bild": "" },
+    { "id": "yankees-cap", "titel": "Annabeths Yankees-Cap", "text": "Hier deinen Text zu Annabeths Yankees-Cap schreiben.", "bild": "" },
+    { "id": "dreizack", "titel": "Poseidons Dreizack", "text": "Hier deinen Text zum Dreizack-Symbol schreiben.", "bild": "" },
+    { "id": "lagerfeuer", "titel": "Das Lagerfeuer", "text": "Hier deinen Text zum Lagerfeuer schreiben.", "bild": "" },
+    { "id": "panfloete", "titel": "Grovers Panflöte", "text": "Hier deinen Text zu Grovers Panflöte schreiben.", "bild": "" },
+    { "id": "medusa", "titel": "Medusas Kopf", "text": "Hier deinen Text zu Medusas Kopf schreiben.", "bild": "" }
+  ],
+  "abschluss": { "titel": "Alle 10 gefunden!", "text": "Hier deinen Abschluss-Text schreiben.", "bild": "" }
+}

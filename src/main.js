@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { buildWorld } from './world.js';
 import { WalkControls } from './controls.js';
 import { Joystick } from './joystick.js';
+import { loadContent, InfoSystem } from './info.js';
 import { groundAt, LAYOUT } from './terrain.js';
 
 function hasWebGL() {
@@ -41,6 +42,7 @@ async function start() {
   const manager = THREE.DefaultLoadingManager;
   manager.onProgress = (_url, loaded, total) => setProgress(0.2 + 0.6 * (loaded / total));
   const assetsLoaded = new Promise((resolve) => (manager.onLoad = resolve));
+  const contentLoaded = loadContent(); // Texte der Infoboxen
 
   const renderer = new THREE.WebGLRenderer({
     antialias: window.devicePixelRatio < 2,
@@ -77,6 +79,8 @@ async function start() {
   scene.add(controls.marker);
   const joystick = new Joystick();
   controls.joystick = joystick;
+  // Infoboxen: Namen, Figuren und Häuser antippen
+  const info = new InfoSystem({ scene, controls, world, content: await contentLoaded });
   // Start auf dem Half-Blood Hill, Blick hinunter aufs Camp (nach Süden)
   const look = LAYOUT.campfire;
   controls.setView(LAYOUT.start.x, LAYOUT.start.z, Math.atan2(LAYOUT.start.x - look.x, LAYOUT.start.z - look.z), -0.17);
@@ -127,6 +131,7 @@ async function start() {
     time += dt;
     controls.update(dt);
     world.update(time, dt, camera);
+    info.update(camera);
     renderer.render(scene, camera);
     adaptQuality(dt);
   });
@@ -141,7 +146,7 @@ async function start() {
   });
 
   // zum Ausprobieren in der Browser-Konsole
-  window.__camp = { scene, camera, controls, renderer, world, getPixelRatio: () => pixelRatio };
+  window.__camp = { scene, camera, controls, renderer, world, info, getPixelRatio: () => pixelRatio };
   if (import.meta.env.DEV) {
     // Test-Hilfe: look('percy') stellt die Kamera vor eine Figur
     window.look = (id, dist = 2, side = 0, pitch = -0.1) => {

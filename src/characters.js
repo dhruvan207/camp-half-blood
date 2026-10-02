@@ -945,19 +945,31 @@ function buildCardTable() {
   return P.build(SKIN_MAT);
 }
 
-function makeLabel(text) {
+// Namensschild mit kleinem „i“: zeigt, dass man darauf tippen kann
+export function makeLabel(text) {
   const tex = canvasTex(512, 128, (g, w, h) => {
-    g.font = 'bold 54px Georgia, serif';
-    const tw = g.measureText(text).width;
-    const bw = Math.min(w - 8, tw + 56);
-    g.fillStyle = 'rgba(27,20,16,0.78)';
+    g.font = 'bold 50px Georgia, serif';
+    const tw = Math.min(g.measureText(text).width, w - 150);
+    const bw = tw + 120;
+    const x0 = (w - bw) / 2;
+    g.fillStyle = 'rgba(27,20,16,0.8)';
     g.beginPath();
-    g.roundRect((w - bw) / 2, 18, bw, 88, 44);
+    g.roundRect(x0, 18, bw, 88, 44);
     g.fill();
     g.fillStyle = '#f3c865';
-    g.textAlign = 'center';
+    g.textAlign = 'left';
     g.textBaseline = 'middle';
-    g.fillText(text, w / 2, 64);
+    g.fillText(text, x0 + 36, 64, w - 150);
+    // „i“-Kreis
+    const cx = x0 + bw - 46;
+    g.beginPath();
+    g.arc(cx, 62, 24, 0, Math.PI * 2);
+    g.fillStyle = '#f3c865';
+    g.fill();
+    g.fillStyle = '#2a1d10';
+    g.textAlign = 'center';
+    g.font = 'bold italic 34px Georgia, serif';
+    g.fillText('i', cx, 64);
   });
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0 }));
   s.scale.set(1.2, 0.3, 1);

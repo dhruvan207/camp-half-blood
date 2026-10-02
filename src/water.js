@@ -49,6 +49,7 @@ export function buildWater() {
   lake.scale.set(L.rx * 1.18, L.rz * 1.13, 1);
   lake.position.set(L.x, L.level, L.z);
   lake.receiveShadow = true;
+  lake.userData.placeId = 'kanusee'; // Antippen öffnet die Infobox zum Kanusee
   group.add(lake);
 
   // Bach: Band entlang einer geglätteten Kurve
@@ -85,6 +86,7 @@ export function buildWater() {
 
   return {
     group,
+    lake,
     update(t) {
       animated[0].offset.set(t * 0.004, t * 0.006); // Meer
       animated[1].offset.set(t * 0.01, -t * 0.006); // See

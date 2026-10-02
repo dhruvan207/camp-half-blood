@@ -146,5 +146,6 @@ export function buildWorld(renderer) {
     }
   }
 
-  return { scene, sun, ground: terrain.group, colliders, obstacles, characters, update };
+  const tapTargets = [water.lake, ...nature.userData.tapTargets];
+  return { scene, sun, ground: terrain.group, colliders, obstacles, characters, tapTargets, update };
 }

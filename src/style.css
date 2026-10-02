@@ -173,3 +173,193 @@ body {
     height: 46px;
   }
 }
+
+/* Infobox */
+.card-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  background: rgba(10, 8, 6, 0.35);
+}
+
+.card-backdrop[hidden] {
+  display: none;
+}
+
+.card {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: min(78vh, 78dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 22px 20px 18px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid rgba(232, 183, 74, 0.45);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  color: var(--ink);
+  -webkit-user-select: text;
+  user-select: text;
+  animation: card-in 0.22s ease-out;
+}
+
+@keyframes card-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+@media (min-width: 700px) and (min-height: 500px) {
+  .card-backdrop {
+    align-items: center;
+  }
+}
+
+.card-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.card-title {
+  margin: 0 44px 12px 0;
+  font-size: 1.45rem;
+  color: var(--gold);
+  line-height: 1.25;
+}
+
+.card-img {
+  display: block;
+  width: 100%;
+  max-height: 34vh;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+
+.card-text p {
+  margin: 0 0 0.8em;
+  line-height: 1.55;
+  font-size: 1.02rem;
+}
+
+.card-text.placeholder {
+  font-style: italic;
+  opacity: 0.6;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card-footer[hidden],
+.card-edit[hidden] {
+  display: none;
+}
+
+.card-status {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.card-edit label {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.card-edit input,
+.card-edit textarea {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(232, 183, 74, 0.5);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px; /* verhindert Zoomen auf dem iPhone */
+  line-height: 1.5;
+}
+
+.card-edit textarea {
+  resize: vertical;
+  min-height: 160px;
+}
+
+.card-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-primary,
+.btn-secondary {
+  font: inherit;
+  padding: 10px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.btn-primary {
+  border: 0;
+  background: var(--gold);
+  color: #2a1d10;
+  font-weight: bold;
+}
+
+.btn-secondary {
+  border: 1px solid rgba(232, 183, 74, 0.6);
+  background: transparent;
+  color: var(--ink);
+}
+
+/* Fehlerhinweis, falls content.json kaputt ist */
+.content-error {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top));
+  left: 16px;
+  right: 16px;
+  z-index: 40;
+  padding: 12px 48px 12px 14px;
+  border-radius: 12px;
+  background: #8e2a1f;
+  color: #fff;
+  line-height: 1.4;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.content-error button {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 26px;
+  cursor: pointer;
+}
