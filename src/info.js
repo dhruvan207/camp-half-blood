@@ -283,6 +283,7 @@ class InfoCard {
 export class InfoSystem {
   constructor({ scene, controls, world, content }) {
     this.content = content.data;
+    this.contentError = content.error;
     if (content.error) showError(content.error);
     this.controls = controls;
     this.world = world;
@@ -295,7 +296,7 @@ export class InfoSystem {
     for (const p of this.places) {
       const s = makeLabel(p.label.text);
       s.position.set(p.label.x, p.label.y, p.label.z);
-      s.scale.multiplyScalar(1.15);
+      s.scale.multiplyScalar(1.6);
       s.userData.placeId = p.id;
       group.add(s);
       this.labels.push(s);
@@ -365,6 +366,8 @@ export class InfoSystem {
   }
 
   async save() {
+    // Bei kaputter Datei nicht speichern, sonst würden alle anderen Texte überschrieben
+    if (this.contentError) return 'Erst den Fehler in content.json beheben (siehe roter Hinweis oben).';
     try {
       const res = await fetch('/__inhalt-speichern', {
         method: 'POST',

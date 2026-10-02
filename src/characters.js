@@ -972,7 +972,7 @@ export function makeLabel(text) {
     g.fillText('i', cx, 64);
   });
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0 }));
-  s.scale.set(1.2, 0.3, 1);
+  s.scale.set(1.36, 0.34, 1);
   s.renderOrder = 10;
   return s;
 }
