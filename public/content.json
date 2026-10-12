@@ -1,53 +1,262 @@
 {
   "anleitung": "Hier stehen alle Texte der Infoboxen. Am einfachsten bearbeitest du sie direkt auf der Seite (Knopf 'Text bearbeiten'). Wenn du diese Datei von Hand änderst: nur den Text zwischen den Anführungszeichen hinter \"titel\", \"text\" und \"bild\" ändern. Bilder kommen in den Ordner public/bilder, bei \"bild\" nur den Dateinamen eintragen, z. B. \"riptide.jpg\".",
   "figuren": [
-    { "id": "percy", "titel": "Percy Jackson", "text": "Hier deinen Text zu Percy Jackson schreiben.", "bild": "" },
-    { "id": "annabeth", "titel": "Annabeth Chase", "text": "Hier deinen Text zu Annabeth Chase schreiben.", "bild": "" },
-    { "id": "grover", "titel": "Grover Underwood", "text": "Hier deinen Text zu Grover Underwood schreiben.", "bild": "" },
-    { "id": "luke", "titel": "Luke Castellan", "text": "Hier deinen Text zu Luke Castellan schreiben.", "bild": "" },
-    { "id": "travis", "titel": "Travis Stoll", "text": "Hier deinen Text zu Travis Stoll schreiben.", "bild": "" },
-    { "id": "connor", "titel": "Connor Stoll", "text": "Hier deinen Text zu Connor Stoll schreiben.", "bild": "" },
-    { "id": "clarisse", "titel": "Clarisse La Rue", "text": "Hier deinen Text zu Clarisse La Rue schreiben.", "bild": "" },
-    { "id": "argus", "titel": "Argus", "text": "Hier deinen Text zu Argus schreiben.", "bild": "" },
-    { "id": "mrd", "titel": "Mr. D (Dionysos)", "text": "Hier deinen Text zu Mr. D schreiben.", "bild": "" },
-    { "id": "chiron", "titel": "Chiron", "text": "Hier deinen Text zu Chiron schreiben.", "bild": "" }
+    {
+      "id": "percy",
+      "titel": "Percy Jackson",
+      "text": "Percy Jackson ist der Protagonist des Buches. Er ist der Sohn vom Meeresgott Poseidon und rettete den Olymp immer und immer wieder. Ausgestattet mit seinem magischem Schwert \"Anaklusmos\" und seiner unterschütterlichen Loyalität zu seinen Freunden stolpert er von einem mythologischen Abenteuer ins nächste.",
+      "bild": ""
+    },
+    {
+      "id": "annabeth",
+      "titel": "Annabeth Chase",
+      "text": "Annabeth Chase ist eine kluge Tochter der Athene, Meistertaktikerin und geschickte Architektin, die Percy Jackson auf all seinen gefährlichen Questen begleitet.",
+      "bild": ""
+    },
+    {
+      "id": "grover",
+      "titel": "Grover Underwood",
+      "text": "Grover Underwood ist ein Satyr und Percys bester Freund, der als Beschützer Demigötter ins Camp Half-Blood bringt.",
+      "bild": ""
+    },
+    {
+      "id": "luke",
+      "titel": "Luke Castellan",
+      "text": "Luke Castellan ist ein Sohn des Hermes, ehemaliger Hüttenleiter und hervorangender Schwerkämpfer.  \nIm verlaufe des Buches wird er auch eine sehr wichtge Rolle spielen.",
+      "bild": ""
+    },
+    {
+      "id": "travis",
+      "titel": "Travis Stoll",
+      "text": "Travis Stoll ist der ältere Bruder von Conner Stoll und ebenfalls ein Sohn des Hermes, mit dem zusammen er die Hermes Hütte leitet und berüchtigt für Streiche, Diebstähle und Chaos ist.",
+      "bild": ""
+    },
+    {
+      "id": "connor",
+      "titel": "Connor Stoll",
+      "text": "Conner Stoll ist der Sohn des Hermes und langjähriger Hüttenleiter der Hermes Hütte im Camp Half-blood. Zusammen mit seinem älteren Bruder Travis ist er für seine streichverliebte, diebische Art bekannt.",
+      "bild": ""
+    },
+    {
+      "id": "clarisse",
+      "titel": "Clarisse La Rue",
+      "text": "Clarisse La Rue ist eine stolze, kampflustige Tochter des Ares und langjährige Hüttenleiterin der Ares Hütte. Obwohl sie Percy zu Beginn nicht mochte, erweist sie sich im laufe des Buches als extrem mutige Kriegerin.",
+      "bild": ""
+    },
+    {
+      "id": "argus",
+      "titel": "Argus",
+      "text": "Argus ist der vieläugige, meist schweigsame Sicherheitschef des Camp Half-Blood. Er dient den Halbgötter als verlässlicher Wächter und schläft nie ganz, da immer einige seiner Augen geöffnet bleiben.",
+      "bild": ""
+    },
+    {
+      "id": "mrd",
+      "titel": "Mr. D (Dionysos)",
+      "text": "Mr. D ist der grimmige, cola- trinkende Gott des Weines, der von seinem Vater Zeus zur Strafe als Direktor ins Camp Half-Blood verbannt wurde. Obwohl er Halbgötter vorgeblich verabscheut und ihre Namen absichtlich falsch ausspricht, schützt und unterstütz er das Camp in entscheidenden Momenten.",
+      "bild": ""
+    },
+    {
+      "id": "chiron",
+      "titel": "Chiron",
+      "text": "Chiron ist ein unsterblicher Zentauer (halb Mensch, halb Pferd) und der erfahrene Aktivitätenleiter des Camp Half-Blood, der seit Jahrtausenden Helden wie Herkules und Percy Jackson ausblidet. Um in Sterblichenwelt nicht aufzufallen, verbirgt er seine pferdische Unterhälftein einem magischem Rollstuhl.",
+      "bild": ""
+    }
   ],
   "huetten": [
-    { "id": "huette-1", "titel": "Hütte 1 – Zeus", "text": "Hier deinen Text zur Hütte von Zeus schreiben.", "bild": "" },
-    { "id": "huette-2", "titel": "Hütte 2 – Hera", "text": "Hier deinen Text zur Hütte von Hera schreiben.", "bild": "" },
-    { "id": "huette-3", "titel": "Hütte 3 – Poseidon", "text": "Hier deinen Text zur Hütte von Poseidon schreiben.", "bild": "" },
-    { "id": "huette-4", "titel": "Hütte 4 – Demeter", "text": "Hier deinen Text zur Hütte von Demeter schreiben.", "bild": "" },
-    { "id": "huette-5", "titel": "Hütte 5 – Ares", "text": "Hier deinen Text zur Hütte von Ares schreiben.", "bild": "" },
-    { "id": "huette-6", "titel": "Hütte 6 – Athene", "text": "Hier deinen Text zur Hütte von Athene schreiben.", "bild": "" },
-    { "id": "huette-7", "titel": "Hütte 7 – Apollon", "text": "Hier deinen Text zur Hütte von Apollon schreiben.", "bild": "" },
-    { "id": "huette-8", "titel": "Hütte 8 – Artemis", "text": "Hier deinen Text zur Hütte von Artemis schreiben.", "bild": "" },
-    { "id": "huette-9", "titel": "Hütte 9 – Hephaistos", "text": "Hier deinen Text zur Hütte von Hephaistos schreiben.", "bild": "" },
-    { "id": "huette-10", "titel": "Hütte 10 – Aphrodite", "text": "Hier deinen Text zur Hütte von Aphrodite schreiben.", "bild": "" },
-    { "id": "huette-11", "titel": "Hütte 11 – Hermes", "text": "Hier deinen Text zur Hütte von Hermes schreiben.", "bild": "" },
-    { "id": "huette-12", "titel": "Hütte 12 – Dionysos", "text": "Hier deinen Text zur Hütte von Dionysos schreiben.", "bild": "" }
+    {
+      "id": "huette-1",
+      "titel": "Hütte 1 – Zeus",
+      "text": "Die Zeurs Hütte ist ein monumentales Marmorgebäude im Camp Half-Blood mit dorischen Säulen und massiven Bronze-Türen. Im Inneren befindet sich eine riesige Statue des Göttervaters sowie ein ewiges Feuer, da Zeus aufgrund des Schwurs der \"Drei Großen\" lange Zeit keine Kinder hatte, steht die Hütte leer.",
+      "bild": ""
+    },
+    {
+      "id": "huette-2",
+      "titel": "Hütte 2 – Hera",
+      "text": "Die Hera Hütte ist ein prunkvolles, tempelartiges Gebäude aus weißem Marmor, das mit Pfauenfeder-Motiven und elegante Säulen verzweigt ist. Da Hera die Göttin der Ehe ist und keine Halbgott-Kinder mit sterblichen zeugt, steht die Hütte dauerhaft leer und dient rein als ehrenvolles Denkmal für die Götterkönigin.",
+      "bild": ""
+    },
+    {
+      "id": "huette-3",
+      "titel": "Hütte 3 – Poseidon",
+      "text": "Die Poseidon Hütte besteht aus echten Muscheln, Korallen und wurde aus rauen See Steine gebaut. Die Hütte stand lange leer, bis Percy Jackson einzog. (Schwur der drei Großen)",
+      "bild": ""
+    },
+    {
+      "id": "huette-4",
+      "titel": "Hütte 4 – Demeter",
+      "text": "Die Demeter Hütte ist eine friedvolle, über und über mit Pflanzen, Blumen und Weizen bewachsene Unterkunft im Camp Half-Blood. Ihre Bewohner können Pflanzen magisch wachsen lassen und gelten als geborene Gärtner und Landwirte des Camps.",
+      "bild": ""
+    },
+    {
+      "id": "huette-5",
+      "titel": "Hütte 5 – Ares",
+      "text": "Die Ares-Hütte ist eine knallrot gestrichene, bedrohliche Unterkunft im Camp Half-Blood, deren Dach mit Stacheldraht und aufgespießten Wildschweinköpfen dekoriert ist. Im inneren dröhnt oft laute Rockmusik, während die kriegerischen Bewohner ihre Waffen schärfen und sich auf den nächsten Kampf vorbereiten.",
+      "bild": ""
+    },
+    {
+      "id": "huette-6",
+      "titel": "Hütte 6 – Athene",
+      "text": "Die Athene Hütte ist eine schlichte graue Unterkunft mit geschnitzten Eulen über der Tür, die im Inneren voller Bücher, Baupläne und Strategietische steht. Ihre Bewohner gelten als die klügsten Köpfe des Camps und brillieren als meisterhafte Taktiker, Architekten und Kampffeld-Analytiker.",
+      "bild": ""
+    },
+    {
+      "id": "huette-7",
+      "titel": "Hütte 7 – Apollo",
+      "text": "Die Apollo Hütte ist eine glänzende goldene Unterkunft in Camp Half-Blood, deren Kinder hervorragende Bogenschützen, Musiker und Heiler sind. Ihre Bewohner leiten die Krankenstation des Camps und sorgen mit ihren Gesängen und Gedichten oft für stimmungsvolle Lagerfeuer.",
+      "bild": ""
+    },
+    {
+      "id": "huette-8",
+      "titel": "Hütte 8 – Artemis",
+      "text": "Die Artemis Hütte ist fast immer leer, weil Artemis keine eigene kinder hat.  Sie wird nur genutzt wenn ihre getreuen Jägerinnen im Camp zu Besuch sind.",
+      "bild": ""
+    },
+    {
+      "id": "huette-9",
+      "titel": "Hütte 9 – Hephaistos",
+      "text": "Die Hephaistso Hütte ist die werkstattähnliche Unterkunft der Kinder des Schmiedegottes, vollgepackt mit Zahnrähdern, Wekzeugen und unterirdischen Tunneln. Ihre Bewohner sind geniale Erfinder und Handwerker, die hochmoderne Waffen, Rüstungen und mechanische Wunderwerke für das Camp bauen.",
+      "bild": ""
+    },
+    {
+      "id": "huette-10",
+      "titel": "Hütte 10 – Aphrodite",
+      "text": "Die Aphrodite Hütte duftet immer nach Rosen. Ihre Bewohner besitzen die Gabe des Charmsprechens (Gedankenkonrolle durch Sprache) und legen großen Wert auf Schönheit, Mode und Liebesangelegenheiten.",
+      "bild": ""
+    },
+    {
+      "id": "huette-11",
+      "titel": "Hütte 11 – Hermes",
+      "text": "Die Hermes Hütte ist die gastfreundliche Unterkunft im Camp Half-Blood, da Hermes der Gott der Reisenden ist und dort traditionell alle unbestimmten Halbgötter aufgenommen werden. Sie ist ständig überfüllt.",
+      "bild": ""
+    },
+    {
+      "id": "huette-12",
+      "titel": "Hütte 12 – Dionysos",
+      "text": "Die Dionysos Hütte ist eine mit Weinreben bewachsene Unterkunft im Camp Half-Blood, deren Räume oft von Festdekoration und Partystimmung geprägt sind. Ihre Bewohner besitzen Magie, Pflanzen wachsen zu lassen und Wahnsinn bei Feinden hervorzurufen, neigen aber wie ihr Vater zu einer eher gemütlichen und feierfreudigen Art.",
+      "bild": ""
+    }
   ],
   "orte": [
-    { "id": "big-house", "titel": "Das Big House", "text": "Hier deinen Text zum Big House schreiben.", "bild": "" },
-    { "id": "speisepavillon", "titel": "Der Speisepavillon", "text": "Hier deinen Text zum Speisepavillon schreiben.", "bild": "" },
-    { "id": "arena", "titel": "Die Arena", "text": "Hier deinen Text zur Arena schreiben.", "bild": "" },
-    { "id": "amphitheater", "titel": "Das Amphitheater", "text": "Hier deinen Text zum Amphitheater schreiben.", "bild": "" },
-    { "id": "staelle", "titel": "Die Ställe", "text": "Hier deinen Text zu den Ställen schreiben.", "bild": "" },
-    { "id": "bogenschiessen", "titel": "Der Bogenschießplatz", "text": "Hier deinen Text zum Bogenschießplatz schreiben.", "bild": "" },
-    { "id": "kanusee", "titel": "Der Kanusee", "text": "Hier deinen Text zum Kanusee schreiben.", "bild": "" },
-    { "id": "erdbeerfelder", "titel": "Die Erdbeerfelder", "text": "Hier deinen Text zu den Erdbeerfeldern schreiben.", "bild": "" },
-    { "id": "kiefer", "titel": "Die Kiefer auf dem Half-Blood Hill", "text": "Hier deinen Text zur Kiefer auf dem Half-Blood Hill schreiben.", "bild": "" }
+    {
+      "id": "big-house",
+      "titel": "Das Big House",
+      "text": "Das Bighouse ist das Hauptgebäude des Camp Half-Blood, in dem Chiron und Mr. D wohnen sowie die Verwaltung des Camps stattfindet. neben der Krankenstation und strategischen Besprechungsräumen befindet sich auf dem Dachboden auch der jahrzentelange Aufenthaltsort des Orakels von Delphi.",
+      "bild": ""
+    },
+    {
+      "id": "speisepavillon",
+      "titel": "Der Speisepavillon",
+      "text": "Der Speisepavillion ist ein offener, von Marmorsäulen gestürtzter Bau im klassischen griechischen Stil, in dem sich die Camper an langen, hüttenspezifischen Tischen zu den Mahlzeiten versammeln. Vor dem Essen werden sie traditionell einen teil ihrer Speisen als Opfergabe in das zentrale Feuer, um die Götter zu ehren.",
+      "bild": ""
+    },
+    {
+      "id": "arena",
+      "titel": "Die Arena",
+      "text": "Die Arena ist das zentrale Trainigsgelände vom Camp Half-Blood, auf dem die Halbgötter ihre Kampfkünste mit Schwertern, Speere und Schilden erproben. Hier finden sowohl schweißtreibende Einzelduelle als auch strategische Teamkämpfe statt, bei denen oft verschiedene Monster als Sparringpartner freigelassen werden, um die Camper auf die echte Schlacht vorzubereiten.",
+      "bild": ""
+    },
+    {
+      "id": "amphitheater",
+      "titel": "Das Amphitheater",
+      "text": "Das Amphitheater ist ein stimmungsvoller, griechisch insperierter Versamellungsort im Camp Half Blood mit Steinbänken, die sich um die große Bühne scharen. Hier treffen sich alle Camper abends zuu gemeinsamen Singstunden, Lagerfeuern, Theateraufführungen und wichtigen Besprechungen, während das Feuer in der Mitte oft magisch seine Farbe je nach Stimmung der Gemeinschaft wechselt.",
+      "bild": ""
+    },
+    {
+      "id": "staelle",
+      "titel": "Die Ställe",
+      "text": "Hier deinen Text zu den Ställen schreiben.",
+      "bild": ""
+    },
+    {
+      "id": "bogenschiessen",
+      "titel": "Der Bogenschießplatz",
+      "text": "Der Bogenschießplatz ist ein weiterläufiges Trainigsgelände im Camp Half-Blood, auf dem die Camper ihre Treffsicherheit mit Pfeil und Bogen perfektionieren. Das Gebiet steht unter der besonderen Obhut der Apollo-Hütte, deren Bewohner hier regelmäßig als Lehrer fungieren und spektakuläre Kunstschüsse vorführen.",
+      "bild": ""
+    },
+    {
+      "id": "kanusee",
+      "titel": "Der Kanusee",
+      "text": "Auf dem Kanusee fahren die Camper nicht nur, sondern trainieren auch für wettkämpfe und machen Taktikübungen. Unter seiner Oberfläche leben allerdings auch gefährliche mythologische Bewohner wie Najaden und Hippokampi, weshalb man beim Paddeln stets wachsam sein muss.",
+      "bild": ""
+    },
+    {
+      "id": "erdbeerfelder",
+      "titel": "Die Erdbeerfelder",
+      "text": "Die Ertbeerfelder sind ein ein Plantagensystem im Camp Half-Blood, auf dem die Camper unter der Anleitung der Demeter Hütte magisch ertragreiche Erdbeeren anbauen. Sie dienen nicht nur als perfekte Tarnung des Camps vor den Blicken ahnungsloser Sterblicher, sondern sind auch die Haupteinahmequelle des Camps, da die frischen Früchte an Spitzenresteraunts in New York verkauft werden.",
+      "bild": ""
+    },
+    {
+      "id": "kiefer",
+      "titel": "Die Kiefer auf dem Half-Blood Hill",
+      "text": "Auf dem Half-Blood Hill steht Thalias Fichte, in die Zeus einst seine sterbende Tochter verwandelte, um ihre Seele zu retten. Dieser magische Baum erzeugt eine unüberwindbare Schutzbarriere um das Camp Half-Blood, die Monster und Sterbliche fernhält.",
+      "bild": ""
+    }
   ],
   "infopunkte": [
-    { "id": "riptide", "titel": "Riptide", "text": "Hier deinen Text zu Riptide schreiben.", "bild": "" },
-    { "id": "minotaurus-horn", "titel": "Das Horn des Minotaurus", "text": "Hier deinen Text zum Horn des Minotaurus schreiben.", "bild": "" },
-    { "id": "chirons-brief", "titel": "Chirons Brief", "text": "Hier deinen Text zu Chirons Brief schreiben.", "bild": "" },
-    { "id": "herrscherblitz", "titel": "Zeus' Herrscherblitz", "text": "Hier deinen Text zum Herrscherblitz schreiben.", "bild": "" },
-    { "id": "flugschuhe", "titel": "Hermes' Flugschuhe", "text": "Hier deinen Text zu den Flugschuhen schreiben.", "bild": "" },
-    { "id": "yankees-cap", "titel": "Annabeths Yankees-Cap", "text": "Hier deinen Text zu Annabeths Yankees-Cap schreiben.", "bild": "" },
-    { "id": "dreizack", "titel": "Poseidons Dreizack", "text": "Hier deinen Text zum Dreizack-Symbol schreiben.", "bild": "" },
-    { "id": "lagerfeuer", "titel": "Das Lagerfeuer", "text": "Hier deinen Text zum Lagerfeuer schreiben.", "bild": "" },
-    { "id": "panfloete", "titel": "Grovers Panflöte", "text": "Hier deinen Text zu Grovers Panflöte schreiben.", "bild": "" },
-    { "id": "medusa", "titel": "Medusas Kopf", "text": "Hier deinen Text zu Medusas Kopf schreiben.", "bild": "" }
+    {
+      "id": "riptide",
+      "titel": "Riptide",
+      "text": "Hier deinen Text zu Riptide schreiben.",
+      "bild": ""
+    },
+    {
+      "id": "minotaurus-horn",
+      "titel": "Das Horn des Minotaurus",
+      "text": "Hier deinen Text zum Horn des Minotaurus schreiben.",
+      "bild": ""
+    },
+    {
+      "id": "chirons-brief",
+      "titel": "Chirons Brief",
+      "text": "Hier deinen Text zu Chirons Brief schreiben.",
+      "bild": ""
+    },
+    {
+      "id": "herrscherblitz",
+      "titel": "Zeus' Herrscherblitz",
+      "text": "Hier deinen Text zum Herrscherblitz schreiben.",
+      "bild": ""
+    },
+    {
+      "id": "flugschuhe",
+      "titel": "Hermes' Flugschuhe",
+      "text": "Hier deinen Text zu den Flugschuhen schreiben.",
+      "bild": ""
+    },
+    {
+      "id": "yankees-cap",
+      "titel": "Annabeths Yankees-Cap",
+      "text": "Hier deinen Text zu Annabeths Yankees-Cap schreiben.",
+      "bild": ""
+    },
+    {
+      "id": "dreizack",
+      "titel": "Poseidons Dreizack",
+      "text": "Hier deinen Text zum Dreizack-Symbol schreiben.",
+      "bild": ""
+    },
+    {
+      "id": "lagerfeuer",
+      "titel": "Das Lagerfeuer",
+      "text": "Hier deinen Text zum Lagerfeuer schreiben.",
+      "bild": ""
+    },
+    {
+      "id": "panfloete",
+      "titel": "Grovers Panflöte",
+      "text": "Hier deinen Text zu Grovers Panflöte schreiben.",
+      "bild": ""
+    },
+    {
+      "id": "medusa",
+      "titel": "Medusas Kopf",
+      "text": "Hier deinen Text zu Medusas Kopf schreiben.",
+      "bild": ""
+    }
   ],
-  "abschluss": { "titel": "Alle 10 gefunden!", "text": "Hier deinen Abschluss-Text schreiben.", "bild": "" }
+  "abschluss": {
+    "titel": "Alle 10 gefunden!",
+    "text": "Hier deinen Abschluss-Text schreiben.",
+    "bild": ""
+  }
 }
