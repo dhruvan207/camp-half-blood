@@ -72,7 +72,7 @@ function buildPlaces() {
     const door = inFrontOf(c, size.front);
     places.push({
       id: 'huette-' + c.nr,
-      label: { x: door.x, z: door.z, y: heightAt(c.x, c.z) + (temple ? 7.6 : 4.4), text: `Hütte ${c.nr} · ${c.god === 'Apollo' ? 'Apollon' : c.god}` },
+      label: { x: door.x, z: door.z, y: heightAt(c.x, c.z) + (temple ? 7.6 : 4.4), text: `Hütte ${c.nr} · ${c.god}` },
       hit: (x, z) => {
         const { lx, lz } = localOf(c, x, z);
         return Math.abs(lx) < size.w / 2 + 0.7 && lz > -size.d / 2 - 0.7 && lz < size.front + 0.3;

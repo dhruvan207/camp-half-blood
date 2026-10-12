@@ -6,8 +6,9 @@ const MAX_SPEED = 4.5; // Meter pro Sekunde
 const PITCH_MIN = -1.0;
 const PITCH_MAX = 0.6;
 
-// Touch-first Steuerung: Joystick oder Tippen = laufen, Wischen = umschauen.
+// Touch-first Steuerung: Joystick = laufen, Wischen = umschauen, Tippen = Infobox öffnen.
 // Funktioniert gleich mit der Maus (Klicken / Ziehen). Am Computer zusätzlich WASD/Pfeiltasten.
+// Alles wird weich geglättet, damit sich Laufen und Umschauen ruhig anfühlen.
 export class WalkControls {
   constructor(camera, dom, { ground, obstacles = [], colliders, heightAt }) {
     this.camera = camera;
@@ -24,6 +25,9 @@ export class WalkControls {
 
     this.yaw = 0;
     this.pitch = 0;
+    this.yawTarget = 0; // Ziel-Blickrichtung (Wischen setzt das Ziel, die Kamera gleitet hinterher)
+    this.pitchTarget = 0;
+    this.bobAmp = 0;
     this.pos = new THREE.Vector2(camera.position.x, camera.position.z);
     this.vel = 0;
     this.target = null;
@@ -68,9 +72,10 @@ export class WalkControls {
 
   setView(x, z, yaw, pitch = 0) {
     this.pos.set(x, z);
-    this.yaw = yaw;
-    this.pitch = pitch;
+    this.yaw = this.yawTarget = yaw;
+    this.pitch = this.pitchTarget = pitch;
     this.target = null;
+    this.stickVel.set(0, 0);
     this.applyCamera(0);
   }
 
@@ -102,8 +107,8 @@ export class WalkControls {
     if (!p.dragging && Math.hypot(p.x - p.x0, p.y - p.y0) > TAP_THRESHOLD) p.dragging = true;
     if (p.dragging) {
       const sens = (Math.PI * 1.1) / Math.max(this.dom.clientWidth, 320);
-      this.yaw += dx * sens;
-      this.pitch = THREE.MathUtils.clamp(this.pitch + dy * sens, PITCH_MIN, PITCH_MAX);
+      this.yawTarget += dx * sens;
+      this.pitchTarget = THREE.MathUtils.clamp(this.pitchTarget + dy * sens, PITCH_MIN, PITCH_MAX);
     }
   }
 
@@ -143,10 +148,9 @@ export class WalkControls {
     // unsichtbare (ausgeblendete) Namensschilder ignorieren
     const hit = hits.find((h) => !(h.object.isSprite && (!h.object.visible || h.object.material.opacity < 0.3)));
     if (!hit) return;
-    // Figur, Haus oder Schild angetippt? Dann öffnet sich die Infobox statt hinzulaufen.
-    if (this.onTapHit && this.onTapHit(hit)) return;
-    this.walkTo(hit.point.x, hit.point.z);
-    this.showMarker(hit.point.x, hit.point.z);
+    // Figur, Haus oder Schild angetippt? Dann öffnet sich die Infobox.
+    // (Laufen geht nur noch mit dem Joystick, ein Tipp auf den Boden macht nichts.)
+    this.onTapHit?.(hit);
   }
 
   showMarker(x, z) {
@@ -171,22 +175,23 @@ export class WalkControls {
 
   // --- Bewegung --------------------------------------------------------
 
+  // Bewegt um (dx, dz). Gibt zurück: 'ok', 'x' / 'z' (nur entlang einer Achse geglitten) oder false.
   tryMove(dx, dz) {
     const c = this.colliders;
     const nx = this.pos.x + dx;
     const nz = this.pos.y + dz;
     if (!c.blocked(nx, nz)) {
       this.pos.set(nx, nz);
-      return true;
+      return 'ok';
     }
     // an Hindernissen entlang gleiten
     if (Math.abs(dx) > 1e-4 && !c.blocked(nx, this.pos.y)) {
       this.pos.x = nx;
-      return true;
+      return 'x';
     }
     if (Math.abs(dz) > 1e-4 && !c.blocked(this.pos.x, nz)) {
       this.pos.y = nz;
-      return true;
+      return 'z';
     }
     return false;
   }
@@ -195,44 +200,60 @@ export class WalkControls {
     dt = Math.min(dt, 0.05);
     let moving = false;
 
+    // Blick weich nachführen (Wischen setzt nur das Ziel)
+    const lookK = 1 - Math.exp(-dt * 20);
+    let fwd = 0;
+    let side = 0;
+    let input = false;
+
     if (this.enabled) {
       // Tastatur (Computer)
       const k = this.keys;
       const f = (k.has('w') || k.has('arrowup') ? 1 : 0) - (k.has('s') || k.has('arrowdown') ? 1 : 0);
       const turn = (k.has('a') || k.has('arrowleft') ? 1 : 0) - (k.has('d') || k.has('arrowright') ? 1 : 0);
-      if (turn) this.yaw += turn * 1.8 * dt;
+      if (turn) this.yawTarget += turn * 1.8 * dt;
       if (f) {
-        this.target = null;
-        this.onArrive = null;
-        const s = f * MAX_SPEED * dt;
-        this.tryMove(-Math.sin(this.yaw) * s, -Math.cos(this.yaw) * s);
-        moving = true;
+        fwd = f;
+        input = true;
       }
-
-      // Joystick: nach vorne/hinten und seitwärts, relativ zur Blickrichtung
+      // Joystick: nach vorne/hinten und seitwärts, relativ zur Blickrichtung.
+      // Leicht drücken = langsam gehen, ganz drücken = laufen (feinere Kontrolle bei wenig Ausschlag).
       const j = this.joystick;
-      const fx = -Math.sin(this.yaw);
-      const fz = -Math.cos(this.yaw);
-      const rx = Math.cos(this.yaw);
-      const rz = -Math.sin(this.yaw);
-      let wantX = 0;
-      let wantZ = 0;
       if (j && j.active) {
-        this.target = null;
-        this.onArrive = null;
-        const fwd = -j.y;
-        const side = j.x;
-        wantX = (fx * fwd + rx * side) * MAX_SPEED;
-        wantZ = (fz * fwd + rz * side) * MAX_SPEED;
+        const mag = Math.min(1, Math.hypot(j.x, j.y));
+        const shaped = Math.pow(mag, 1.4) / (mag || 1);
+        fwd = -j.y * shaped;
+        side = j.x * shaped;
+        input = true;
       }
-      // weich beschleunigen und abbremsen
-      const a = Math.min(1, dt * (j && j.active ? 8 : 16)); // beim Loslassen schneller stehen bleiben
-      this.stickVel.x += (wantX - this.stickVel.x) * a;
-      this.stickVel.y += (wantZ - this.stickVel.y) * a;
-      if (this.stickVel.lengthSq() > 0.0004) {
-        if (!this.tryMove(this.stickVel.x * dt, this.stickVel.y * dt)) this.stickVel.set(0, 0);
-        moving = true;
-      }
+    }
+
+    this.yaw += (this.yawTarget - this.yaw) * lookK;
+    this.pitch += (this.pitchTarget - this.pitch) * lookK;
+
+    if (input) {
+      this.target = null;
+      this.onArrive = null;
+    }
+    const fx = -Math.sin(this.yaw);
+    const fz = -Math.cos(this.yaw);
+    const rx = Math.cos(this.yaw);
+    const rz = -Math.sin(this.yaw);
+    const wantX = (fx * fwd + rx * side) * MAX_SPEED;
+    const wantZ = (fz * fwd + rz * side) * MAX_SPEED;
+    // weich beschleunigen (ca. 0,25 s) und abbremsen (ca. 0,15 s), unabhängig von der Bildrate
+    const velK = 1 - Math.exp(-dt / (input ? 0.25 : 0.15));
+    this.stickVel.x += (wantX - this.stickVel.x) * velK;
+    this.stickVel.y += (wantZ - this.stickVel.y) * velK;
+    if (this.stickVel.lengthSq() > 0.0004) {
+      const r = this.tryMove(this.stickVel.x * dt, this.stickVel.y * dt);
+      // an Wänden entlanggleiten statt hart stehen zu bleiben
+      if (r === 'x') this.stickVel.y *= 0.6;
+      else if (r === 'z') this.stickVel.x *= 0.6;
+      else if (!r) this.stickVel.multiplyScalar(0.5);
+      moving = !!r;
+    } else {
+      this.stickVel.set(0, 0);
     }
 
     if (this.target) {
@@ -254,8 +275,11 @@ export class WalkControls {
       }
     }
 
-    if (moving) this.bob += dt * 9;
-    else this.bob *= 0.9;
+    // leichtes Wippen beim Gehen: Stärke und Takt hängen vom Tempo ab und klingen weich aus
+    const speed = this.stickVel.length() + (this.target ? this.vel : 0);
+    const ampK = 1 - Math.exp(-dt * 6);
+    this.bobAmp += ((moving ? Math.min(1, speed / MAX_SPEED) * 0.022 : 0) - this.bobAmp) * ampK;
+    this.bob += dt * (5 + speed * 1.3);
 
     // Markierung ausblenden
     const m = this.marker.material;
@@ -268,10 +292,10 @@ export class WalkControls {
   }
 
   applyCamera(dt) {
-    const y = this.heightAt(this.pos.x, this.pos.y) + EYE_HEIGHT + Math.sin(this.bob) * 0.03;
+    const y = this.heightAt(this.pos.x, this.pos.y) + EYE_HEIGHT + Math.sin(this.bob) * this.bobAmp;
     const cam = this.camera;
     if (dt === 0) cam.position.y = y;
-    else cam.position.y += (y - cam.position.y) * Math.min(1, dt * 10);
+    else cam.position.y += (y - cam.position.y) * (1 - Math.exp(-dt * 12));
     cam.position.x = this.pos.x;
     cam.position.z = this.pos.y;
     cam.rotation.set(this.pitch, this.yaw, 0, 'YXZ');

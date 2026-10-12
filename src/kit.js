@@ -195,7 +195,7 @@ export function materials() {
     marble: std({ map: marble, roughness: 0.35 }),
     splash: std({ map: splash, roughness: 0.7 }),
     grassRoof: std({ map: grass, roughness: 1 }),
-    // Gold glänzt stark und strahlt etwas (Apollon: „so hell, dass man kaum hinschauen kann“)
+    // Gold glänzt stark und strahlt etwas (Apollo: „so hell, dass man kaum hinschauen kann“)
     gold: std({ metalness: 1, roughness: 0.14, emissive: new THREE.Color('#7a5200'), emissiveIntensity: 0.4 }),
     bronze: std({ metalness: 0.9, roughness: 0.3 }),
     silver: std({ metalness: 0.95, roughness: 0.18, emissive: new THREE.Color('#a9c4ff'), emissiveIntensity: 0.12 }),

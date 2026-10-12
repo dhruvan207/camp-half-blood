@@ -743,7 +743,7 @@ const BUILDERS = {
     return o;
   },
 
-  // Apollon: aus massivem Gold, das in der Sonne fast blendet
+  // Apollo: aus massivem Gold, das in der Sonne fast blendet
   7(k) {
     const o = { ...DEFAULT, nr: 7, wall: 'gold', wallColor: '#f0c24a', gableBucket: 'gold', gableColor: '#f3c850', roofBucket: 'gold', roofColor: '#e0a83a', trimBucket: 'gold', trim: '#ffd970', baseBucket: 'gold', baseColor: '#d9a53a', door: { color: '#c9922e', bucket: 'gold', frameBucket: 'gold', frame: '#ffd970' }, win: { frameBucket: 'gold', frame: '#ffd970', glass: '#5a4a2a' }, stepStyle: { bucket: 'gold', color: '#d9a53a' }, gutters: false, piers: false };
     shell(k, o);
