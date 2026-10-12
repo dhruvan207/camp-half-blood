@@ -22,25 +22,25 @@
     {
       "id": "luke",
       "titel": "Luke Castellan",
-      "text": "Luke Castellan ist ein Sohn des Hermes, ehemaliger Hüttenleiter und hervorragender Schwertkämpfer.\nIm Verlauf des Buches wird er auch eine sehr wichtige Rolle spielen.",
+      "text": "Luke Castellan ist ein Sohn des Hermes, Hüttenleiter und hervorragender Schwertkämpfer.\nIm Verlauf des Buches wird er auch eine sehr wichtige Rolle spielen.",
       "bild": ""
     },
     {
       "id": "travis",
       "titel": "Travis Stoll",
-      "text": "Travis Stoll ist der ältere Bruder von Connor Stoll und ebenfalls ein Sohn des Hermes. Zusammen mit Connor leitet er die Hermes-Hütte und ist berüchtigt für Streiche, Diebstähle und Chaos.",
+      "text": "Travis Stoll ist der ältere Bruder von Connor Stoll und ebenfalls ein Sohn des Hermes. Zusammen mit Connor ist er berüchtigt für Streiche, Diebstähle und Chaos.",
       "bild": ""
     },
     {
       "id": "connor",
       "titel": "Connor Stoll",
-      "text": "Connor Stoll ist der Sohn des Hermes und langjähriger Hüttenleiter der Hermes-Hütte im Camp Half-Blood. Zusammen mit seinem älteren Bruder Travis ist er für seine streichverliebte, diebische Art bekannt.",
+      "text": "Connor Stoll ist der Sohn des Hermes und wohnt in der Hermes-Hütte im Camp Half-Blood. Zusammen mit seinem älteren Bruder Travis ist er für seine streichverliebte, diebische Art bekannt.",
       "bild": ""
     },
     {
       "id": "clarisse",
       "titel": "Clarisse La Rue",
-      "text": "Clarisse La Rue ist eine stolze, kampflustige Tochter des Ares und langjährige Hüttenleiterin der Ares-Hütte. Obwohl sie Percy zu Beginn nicht mochte, erweist sie sich im Laufe des Buches als extrem mutige Kriegerin.",
+      "text": "Clarisse La Rue ist eine stolze, kampflustige Tochter des Ares und langjährige Hüttenleiterin der Ares-Hütte.",
       "bild": ""
     },
     {
@@ -176,7 +176,7 @@
     {
       "id": "kanusee",
       "titel": "Der Kanusee",
-      "text": "Auf dem Kanusee fahren die Camper nicht nur Kanu, sondern trainieren auch für Wettkämpfe und machen Taktikübungen. Unter seiner Oberfläche leben allerdings auch gefährliche mythologische Bewohner wie Najaden und Hippokampi, weshalb man beim Paddeln stets wachsam sein muss.",
+      "text": "Auf dem Kanusee fahren die Camper nicht nur Kanu, sondern trainieren auch für Wettkämpfe und machen Taktikübungen. Unter seiner Oberfläche leben allerdings auch gefährliche mythologische Bewohner wie Najaden, weshalb man beim Paddeln stets wachsam sein muss.",
       "bild": ""
     },
     {
