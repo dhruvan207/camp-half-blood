@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#1b1410" />
+    <title>Camp Half-Blood</title>
+    <script type="module" crossorigin src="/camp-half-blood/assets/index-JwMQMY19.js"></script>
+    <link rel="stylesheet" crossorigin href="/camp-half-blood/assets/index-C70d5ia5.css">
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <!-- Ladebildschirm -->
+    <div id="loading" class="screen">
+      <div class="loading-box">
+        <h1>Camp Half-Blood</h1>
+        <p class="sub">Ein begehbares Buchprojekt zu „Percy Jackson – Diebe im Olymp“</p>
+        <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
+        <p class="percent" id="percent">0 %</p>
+        <div id="start-area" hidden>
+          <p class="hint">Laufe mit dem Joystick unten links und wische zum Umschauen. Tippe auf Namen und Häuser, um mehr zu erfahren.</p>
+          <button id="start-btn" type="button">Camp betreten</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fallback, falls WebGL fehlt -->
+    <div id="fallback" class="screen" hidden>
+      <div class="loading-box">
+        <h1>Camp Half-Blood</h1>
+        <p>Dein Browser kann leider keine 3D-Grafik (WebGL) anzeigen.</p>
+        <p>Bitte öffne die Seite in einem aktuellen Browser, z.&nbsp;B. Safari, Chrome oder Firefox, oder auf einem anderen Gerät.</p>
+      </div>
+    </div>
+
+  </body>
+</html>
