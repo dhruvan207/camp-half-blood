@@ -42,8 +42,9 @@ function inhaltSpeichern() {
   };
 }
 
-export default defineConfig(({ command }) => ({
-  base: command === 'build' ? `/${REPO}/` : '/',
+export default defineConfig(({ command, isPreview }) => ({
+  // fertige Version (und ihr Test mit „npm run preview“) liegt im Unterordner wie auf GitHub Pages
+  base: command === 'build' || isPreview ? `/${REPO}/` : '/',
   plugins: [inhaltSpeichern()],
   build: {
     target: 'es2020',
